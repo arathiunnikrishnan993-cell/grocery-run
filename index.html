@@ -1,0 +1,681 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Help Arathi catch the foods she likes and dodge the ones she hates in this pixel-art grocery game.">
+<title>Arathi's Grocery Run</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=VT323&display=swap">
+<style>
+/* Layout: one portrait game screen, a 9:16 supermarket with a shelf-tag HUD on the ceiling band; title and receipt sit on top of it. */
+:root {
+  color-scheme: dark;
+  --night: #0f3540;      /* outside the store */
+  --ceiling: #174a58;    /* HUD band */
+  --tag: #ffe27a;        /* shelf price tag yellow */
+  --tomato: #e8483f;     /* aisle signs, hearts */
+  --leaf: #2f9e55;       /* loves */
+  --amber: #e79a23;      /* dislikes */
+  --paper: #fbf6e9;      /* till receipt */
+  --ink: #23303a;
+  --display: "Pixelify Sans", "Courier New", monospace;
+  --mono: "VT323", "Courier New", monospace;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { margin: 0; }
+html { touch-action: none; }
+body {
+  background: var(--night); color: var(--paper);
+  font-family: var(--mono); font-size: 20px; line-height: 1.15;
+  box-sizing: border-box;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 8px;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; user-select: none; -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+#game { position: relative; width: 320px; height: 569px; overflow: hidden; background: var(--ceiling); }
+canvas#c { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+
+#hud {
+  position: absolute; inset: 0 0 auto; height: 10%;
+  display: flex; align-items: center; gap: 10px; padding-inline: 10px;
+  pointer-events: none;
+}
+#scoreTag {
+  background: var(--tag); color: var(--ink); padding: 2px 8px 1px;
+  font-family: var(--display); font-weight: 700; font-size: 22px;
+  font-variant-numeric: tabular-nums; box-shadow: 3px 3px 0 #0a262e;
+  min-width: 56px; text-align: center;
+}
+#hearts { display: flex; gap: 3px; }
+#hearts img { width: 22px; height: 22px; image-rendering: pixelated; }
+#hearts img.lost { opacity: .22; }
+#aisleCount { margin-left: auto; font-size: 20px; color: var(--paper); white-space: nowrap; }
+#mute {
+  pointer-events: auto; background: none; border: 2px solid var(--paper); color: var(--paper);
+  font-family: var(--mono); font-size: 16px; padding: 1px 6px; cursor: pointer; white-space: nowrap; flex: none;
+}
+#progress { position: absolute; left: 0; right: 0; top: 10%; height: 4px; background: #0a262e; pointer-events: none; }
+#progress i { display: block; height: 100%; width: 0; background: var(--tag); }
+
+.overlay {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
+  padding: 10px 12px; box-sizing: border-box; overflow-y: auto; touch-action: pan-y;
+  background: rgba(15, 53, 64, .96); gap: 8px;
+}
+.overlay > :first-child { margin-top: auto; }
+.overlay > :last-child { margin-bottom: auto; }
+h1 {
+  font-family: var(--display); font-weight: 700; font-size: 34px; line-height: 1; margin: 0;
+  text-align: center; color: var(--tag); text-shadow: 3px 3px 0 var(--tomato); text-wrap: balance;
+}
+.lede { margin: 0; text-align: center; max-width: 28ch; }
+#legend { width: 100%; display: flex; flex-direction: column; gap: 6px; }
+.row { background: var(--paper); color: var(--ink); padding: 5px 7px 6px; border-left: 6px solid var(--c); }
+.row b { font-family: var(--display); font-weight: 700; font-size: 16px; display: block; margin-bottom: 3px; }
+.foods { display: flex; flex-wrap: wrap; gap: 3px 9px; }
+.foods span { display: inline-flex; align-items: center; gap: 2px; font-size: 18px; font-variant-numeric: tabular-nums; }
+.foods img { width: 32px; height: 32px; image-rendering: pixelated; }
+button.go {
+  font-family: var(--display); font-weight: 700; font-size: 22px; color: #fff; cursor: pointer;
+  background: var(--tomato); border: 0; padding: 9px 22px 8px; box-shadow: 4px 4px 0 #0a262e;
+}
+button.go:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 #0a262e; }
+button:focus-visible { outline: 3px solid var(--tag); outline-offset: 2px; }
+.keys { margin: 0; font-size: 17px; opacity: .85; text-align: center; }
+
+#receipt {
+  width: 100%; max-width: 270px; box-sizing: border-box; background: var(--paper); color: var(--ink);
+  padding: 14px 14px 20px; font-size: 19px;
+  --z: 8px;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--z)),
+    92% 100%, 84% calc(100% - var(--z)), 76% 100%, 68% calc(100% - var(--z)), 60% 100%,
+    52% calc(100% - var(--z)), 44% 100%, 36% calc(100% - var(--z)), 28% 100%, 20% calc(100% - var(--z)),
+    12% 100%, 4% calc(100% - var(--z)), 0 100%);
+}
+#receipt h2 { font-family: var(--display); font-weight: 700; font-size: 24px; margin: 0; text-align: center; }
+#rSub { text-align: center; margin: 2px 0 8px; }
+#rLines { border-block: 2px dashed var(--ink); padding-block: 6px; }
+#rLines div, .tot { display: flex; justify-content: space-between; gap: 10px; font-variant-numeric: tabular-nums; }
+.tot { padding-top: 6px; font-size: 23px; }
+#rNote { text-align: center; margin: 8px 0 0; }
+@media (prefers-reduced-motion: reduce) { button.go:active { transform: none; } }
+</style>
+</head>
+<body>
+
+<div id="game">
+  <canvas id="c" width="810" height="1440" role="img" aria-label="Arathi in a grocery store with food falling from above"></canvas>
+  <div id="hud">
+    <div id="scoreTag" aria-live="off">0</div>
+    <div id="hearts" aria-label="Lives"></div>
+    <div id="aisleCount" aria-label="Aisle">1/5</div>
+    <button id="mute" type="button" aria-pressed="false">Mute</button>
+  </div>
+  <div id="progress"><i id="bar"></i></div>
+
+  <section class="overlay" id="title">
+    <h1>Arathi's Grocery Run</h1>
+    <p class="lede">Food is falling off the shelves. Move Arathi so she only catches what she likes.</p>
+    <div id="legend"></div>
+    <button class="go" id="start" type="button">Start shopping</button>
+    <p class="keys">Drag your finger, or use the arrow keys</p>
+  </section>
+
+  <section class="overlay" id="end" hidden>
+    <div id="receipt">
+      <h2 id="rHead">Thank you!</h2>
+      <p id="rSub"></p>
+      <div id="rLines"></div>
+      <div class="tot"><span>TOTAL</span><span id="rTotal">0</span></div>
+      <div class="tot" style="font-size:18px;padding-top:0"><span>Best trip</span><span id="rBest">0</span></div>
+      <p id="rNote"></p>
+    </div>
+    <button class="go" id="again" type="button">Shop again</button>
+  </section>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var W = 135, H = 240, PX = 6, FLOOR = 196, TRIP = 5, AISLE_SECONDS = 14;
+  var canvas = document.getElementById('c'), ctx = canvas.getContext('2d');
+  var $ = function (id) { return document.getElementById(id); };
+  var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- Pixel food ---------- */
+  var COL = {
+    k:'#2a2230', y:'#f7d64a', Y:'#d9a82e', b:'#7a5230', g:'#3fa34d', G:'#24713a', l:'#7cd36b',
+    r:'#e23b3b', R:'#a82230', p:'#ff9d9d', u:'#7b3fa0', U:'#53267a', v:'#b57bdc', o:'#f08a24',
+    O:'#c4611a', n:'#ffb45e', w:'#fbf7ef', W:'#cfd6de', c:'#4aa3e0', C:'#2b6fb0', t:'#e0bb85',
+    T:'#a87a45', s:'#2a2230', e:'#d8f0b0'
+  };
+  var ART = {
+    spinach: [
+      '....kk....kk....','...kglk..kgGk...','..kglGkkkgGGgk..','..kgGGkglkGGgk..',
+      '.kkgGGkgGkGgkkk.','kgGkgGkgGkgkgGgk','kgGGkgGgGgkgGGgk','.kgGGkgGgkgGGgk.',
+      '..kkgGkgkgGgkk..','....kkgggkk.....','....krrrrrk.....','.....klllk......',
+      '.....klllk......','....klklklk.....','....kk.k.kk.....'],
+    strawberry: [
+      '.......kGk......','....kkkgGgkkk...','...kgggGgGgggk..','..krrggrgrggrrk.',
+      '.krrrrrrrrrrrrrk','.krpyrrrryrrrrrk','.krprryrrrrryrrk','.krrrrrrrrrrrrRk',
+      '..krryrrrryrrRk.','..krrrrrrrrrRRk.','...krrryrrrRRk..','....krrrrRRRk...',
+      '.....krrRRRk....','......krRRk.....','.......kkk......'],
+    grapes: [
+      '.......kGk.kkk..','.....kkkGkkglk..','...kkkkkGkkkk...','..kvuukvuukvuuk.',
+      '..kuuUkuuUkuuUk.','..kkUkvuukkUkkk.','...kkkuuUkvuuk..','...kvuukUkkuuUk.',
+      '...kuuUkkvuukUk.','....kUkvukuuUk..','....kkkuuUkUk...','.....kvukUkk....',
+      '.....kuuUk......','......kUk.......','.......k........'],
+    milk: [
+      '.....kkkkkk.....','....kwwwwwWk....','...kwwwwwwWWk...','...kkkkkkkkkk...',
+      '...kwwwwwwwWk...','...kccccccCCk...','...kcwcwcwcCk...','...kcwwwcwcCk...',
+      '...kcwcwcwcCk...','...kccccccCCk...','...kwwwwwwwWk...','...kwwcccwwWk...',
+      '...kwwcccwwWk...','...kwwwwwwwWk...','...kkkkkkkkkk...'],
+    protein: [
+      '................','................','................','k..kkkkkkkkkk..k',
+      'kkkooooooooookkk','kOkoooooooooooOk','kOkowwwowwwoooOk','kOkowowowowoooOk',
+      'kOkowwwowwooooOk','kOkowoooowoooOOk','kOkowoooowoooOOk','kkkoOOOOOOOOokkk',
+      'k..kkkkkkkkkk..k','................','................'],
+    oats: [
+      '...kkkkkkkkkk...','..kCCCCCCCCCCk..','..kkkkkkkkkkkk..','..kttttttttTTk..',
+      '..kttttttttTTk..','..kwwwwwwwwWWk..','..kwtwwtwwtWWk..','..kwwtwwtwwWWk..',
+      '..kwtwwtwwtWWk..','..kwwwwwwwwWWk..','..kttttttttTTk..','..kttTttTttTTk..',
+      '..kttttttttTTk..','...kkkkkkkkkk...','................'],
+    apple: [
+      '.......kGk.kk...','.......kGklglk..','...kkkkkGkkkk...','..krrrrkGkrrrk..',
+      '.krpprrrkrrrrRk.','.krprrrrrrrrrRk.','.krprrrrrrrrrRk.','.krrrrrrrrrrrRk.',
+      '.krrrrrrrrrrrRk.','.krrrrrrrrrrRRk.','..krrrrrrrrrRk..','..krrrrrrrrRRk..',
+      '...krrrkkrrRk...','....kkk..kkk....'],
+    cucumber: [
+      '...........kkk..','.........kkGgGk.','........kGgGgGGk','.......kGgGgGgGk',
+      '......kGgGgGgGk.','.....kGgGgGgGk..','....kGgGgGgGk...','...kGgGgGgGk....',
+      '..klGgGgGgk.....','.kllwGgGgk......','kllwwlGgk.......','klwwllGk........',
+      'kllllGk.........','.kkkkk..........'],
+    watermelon: [
+      '.......kk.......','......krrk......','.....krrrrk.....','.....krsrrk.....',
+      '....krrrrrrk....','....krrrsrrk....','...krsrrrrrrk...','...krrrrrsrrk...',
+      '..krrrsrrrrrrk..','..krrrrrrrsrrk..','.krrsrrrrrrrrrk.','.kwwwwwwwwwwwwk.',
+      'klggggggggggggGk','kGGGGGGGGGGGGGGk','.kkkkkkkkkkkkkk.'],
+    banana: [
+      '............kk..','...........kbbk.','...........kyyk.','...........kyyk.',
+      '..........kyyYk.','.........kyyyYk.','.k......kyyyyk..','kbk...kkyyyyYk..',
+      'kyykkkyyyyyyk...','.kyyyyyyyyYYk...','.kYyyyyyyYYk....','..kkYYYYYkk.....',
+      '....kkkkk.......'],
+    brinjal: [
+      '...........kk...','..........kGGk..','.......kkkgGk...','......kggggkk...',
+      '.....kuuggguk...','....kuvvuuuuk...','...kuvvuuuuUk...','..kuvuuuuuUUk...',
+      '..kuvuuuuuUk....','.kuuuuuuuUUk....','.kuuuuuuUUk.....','.kuuuuuUUk......',
+      '..kUUUUUk.......','...kkkkk........'],
+    pumpkin: [
+      '.......kGGk.....','......kgGk......','...kkkkkkkkkk...','..koOnoOonOonk..',
+      '.koooOnoonOoook.','.knooOnoonOoOok.','koooOnooooOooOOk','koooOnoooonOoOOk',
+      'koooOnoooonOoOOk','koooOnoooonOoOOk','.koooOnoonOoOOk.','.koooOnoonOoOOk.',
+      '..kOOOOOOOOOOk..','...kkkkkkkkkk...'],
+    gourd: [
+      '......kGk.......','......kGk.......','.....kkkkk......','....kellGk......',
+      '....kelGGk......','....kelGGk......','.....kelGk......','....kellGGk.....',
+      '...kellllGGk....','..kellllllGGk...','..kelllllGGGk...','..kelllllGGGk...',
+      '...kelllGGGk....','....kGGGGGk.....','.....kkkkk......'],
+    heart: [
+      '................','..kkkk....kkkk..','.krrrrk..krrrrk.','krprrrrkkrrrrrRk',
+      'krprrrrrrrrrrrRk','krrrrrrrrrrrrrRk','.krrrrrrrrrrrRk.','..krrrrrrrrrRk..',
+      '...krrrrrrrRk...','....krrrrrRk....','.....krrrRk.....','......krRk......',
+      '.......kk.......']
+  };
+
+  var sprite = {};
+  Object.keys(ART).forEach(function (name) {
+    var c = document.createElement('canvas'); c.width = 16; c.height = 16;
+    var g = c.getContext('2d'), rows = ART[name], top = Math.floor((16 - rows.length) / 2);
+    rows.forEach(function (row, y) {
+      for (var x = 0; x < row.length && x < 16; x++) {
+        if (row[x] !== '.') { g.fillStyle = COL[row[x]]; g.fillRect(x, y + top, 1, 1); }
+      }
+    });
+    sprite[name] = c;
+  });
+
+  /* tone: love / fine / dislike / hate */
+  var FOOD = {
+    spinach:    { name:'Spinach',      pts:30,  tone:'love',    quip:'Spinach! My favourite!', hue:'#3fa34d' },
+    strawberry: { name:'Strawberry',   pts:20,  tone:'love',    quip:'Strawberry, yes!',       hue:'#e23b3b' },
+    grapes:     { name:'Grapes',       pts:20,  tone:'love',    quip:'I love grapes!',         hue:'#7b3fa0' },
+    milk:       { name:'Milk',         pts:15,  tone:'love',    quip:'Milk, please!',          hue:'#fbf7ef' },
+    protein:    { name:'Protein bar',  pts:15,  tone:'love',    quip:'Protein bar!',           hue:'#f08a24' },
+    oats:       { name:'Oats',         pts:15,  tone:'love',    quip:'Oats for breakfast!',    hue:'#e0bb85' },
+    apple:      { name:'Apple',        pts:5,   tone:'fine',    quip:'Apple is fine.',         hue:'#e23b3b' },
+    cucumber:   { name:'Cucumber',     pts:-10, tone:'dislike', quip:'Not cucumber...',        hue:'#3fa34d' },
+    watermelon: { name:'Watermelon',   pts:-10, tone:'dislike', quip:'Too sugary!',            hue:'#e23b3b' },
+    banana:     { name:'Banana',       pts:-20, tone:'hate',    quip:'Ew, banana!',            hue:'#f7d64a' },
+    brinjal:    { name:'Brinjal',      pts:-20, tone:'hate',    quip:'No brinjal!',            hue:'#7b3fa0' },
+    pumpkin:    { name:'Pumpkin',      pts:-20, tone:'hate',    quip:'No pumpkin!',            hue:'#f08a24' },
+    gourd:      { name:'Gourd',        pts:-20, tone:'hate',    quip:'No gourds!',             hue:'#7cd36b' }
+  };
+  var GOOD = ['spinach','strawberry','grapes','milk','protein','oats','apple'];
+  var BAD = ['banana','brinjal','pumpkin','gourd','cucumber','watermelon'];
+
+  var AISLES = [
+    { label:'FRUITS & VEG', kind:'crates', wall:'#c9ecd9', boost:['strawberry','grapes','apple'] },
+    { label:'DAIRY',        kind:'fridge', wall:'#cfe6f5', boost:['milk'] },
+    { label:'BREAKFAST',    kind:'boxes',  wall:'#f5e3c4', boost:['oats','milk'] },
+    { label:'HEALTH SNACKS',kind:'bars',   wall:'#f4d3cd', boost:['protein'] },
+    { label:'FRESH GREENS', kind:'greens', wall:'#d6edb9', boost:['spinach'] }
+  ];
+
+  /* ---------- Store backgrounds, a little wider than the screen so they pan as she walks ---------- */
+  var BG_W = 215;
+  function rng(seed) { return function () { seed = (seed * 16807) % 2147483647; return seed / 2147483647; }; }
+  function mix(a, b, t) {
+    var pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16), o = [];
+    [16, 8, 0].forEach(function (s) {
+      o.push(Math.round(((pa >> s) & 255) * (1 - t) + ((pb >> s) & 255) * t));
+    });
+    return 'rgb(' + o.join(',') + ')';
+  }
+  function makeAisle(a, idx) {
+    var c = document.createElement('canvas'); c.width = BG_W; c.height = H;
+    var g = c.getContext('2d'), r = rng(9173 + idx * 311);
+    function R(x, y, w, h, col) { g.fillStyle = col; g.fillRect(x, y, w, h); }
+    var soft = function (col) { return mix(col, a.wall, 0.58); };
+
+    R(0, 0, BG_W, 30, '#174a58');
+    for (var i = 8; i < BG_W; i += 46) { R(i, 25, 30, 3, '#fff6c9'); R(i, 28, 30, 1, '#9fd0c6'); }
+    R(0, 30, BG_W, FLOOR - 30, a.wall);
+
+    var shelves = [76, 118, 160], tints = ['#e8483f','#2f9e55','#e79a23','#4aa3e0','#7b3fa0','#f7d64a'];
+    shelves.forEach(function (sy) {
+      for (var x = 2; x < BG_W - 6;) {
+        var col = tints[Math.floor(r() * tints.length)], w;
+        if (a.kind === 'crates' || a.kind === 'greens') {
+          w = 20;
+          if (a.kind === 'greens') col = r() > .5 ? '#3fa34d' : '#7cd36b';
+          for (var b = 0; b < 7; b++) R(x + 2 + Math.floor(r() * 13), sy - 16 + Math.floor(r() * 5), 4, 4, soft(col));
+          R(x, sy - 10, w - 1, 10, soft('#a87a45')); R(x, sy - 6, w - 1, 1, soft('#7a5230'));
+        } else if (a.kind === 'fridge') {
+          w = 9;
+          var h = 18 + Math.floor(r() * 4);
+          R(x, sy - h + 5, w - 2, h - 5, soft('#fbf7ef')); R(x + 2, sy - h, 3, 5, soft('#fbf7ef'));
+          R(x, sy - 11, w - 2, 5, soft(col)); R(x + 2, sy - h, 3, 1, soft(col));
+        } else if (a.kind === 'boxes') {
+          w = 14;
+          var bh = 22 + Math.floor(r() * 8);
+          R(x, sy - bh, w - 1, bh, soft(col)); R(x + 2, sy - bh + 4, w - 5, 8, soft('#fbf7ef'));
+        } else {
+          w = 11;
+          for (var s = 0; s < 4; s++) { R(x, sy - 5 - s * 6, w - 1, 5, soft(s % 2 ? col : tints[(idx + s) % 6])); }
+        }
+        x += w;
+      }
+      R(0, sy, BG_W, 4, '#8fa6ad'); R(0, sy + 4, BG_W, 1, '#5e7780');
+      for (var t = 6; t < BG_W; t += 30) R(t, sy + 1, 7, 3, '#ffe27a');
+    });
+    if (a.kind === 'fridge') { g.fillStyle = 'rgba(190,230,255,.32)'; g.fillRect(0, 42, BG_W, 124);
+      for (var d = 0; d < BG_W; d += 54) R(d, 42, 2, 124, '#8fa6ad'); }
+
+    R(0, FLOOR - 26, BG_W, 26, '#7f97a0'); R(0, FLOOR - 26, BG_W, 2, '#a9bdc3'); /* shelf base */
+    for (var fy = 0; fy < H - FLOOR; fy += 10) for (var fx = 0; fx < BG_W; fx += 10) {
+      R(fx, FLOOR + fy, 10, 10, ((fx + fy) / 10) % 2 ? '#e9e4d3' : '#b9d9d0');
+    }
+    R(0, FLOOR, BG_W, 2, '#5e7780');
+    return c;
+  }
+  var bgs = AISLES.map(makeAisle);
+
+  /* ---------- Arathi ---------- */
+  var SKIN='#e6b08a', SKIN2='#cf9670', HAIR='#1c1620', HAIR2='#3c2d44', DRESS='#17161d',
+      FLOWER='#efe9dd', LINK='#d9c3ad', TIGHT='#2a2732', SHOE='#4a3d44', BASK='#c58c4f', BASK2='#8a5a2e';
+  function makeGirl(step, face, dir) {
+    var c = document.createElement('canvas'); c.width = 30; c.height = 46;
+    var g = c.getContext('2d');
+    function R(x, y, w, h, col) { g.fillStyle = col; g.fillRect(x, y, w, h); }
+    /* long hair behind, wavy ends */
+    R(8,1,15,4,HAIR); R(6,3,19,3,HAIR); R(5,6,21,14,HAIR); R(4,14,23,20,HAIR);
+    R(3,18,2,5,HAIR); R(26,21,2,5,HAIR); R(3,27,2,5,HAIR); R(26,29,2,4,HAIR);
+    R(4,34,6,2,HAIR); R(21,34,6,2,HAIR); R(5,36,3,1,HAIR); R(23,36,3,1,HAIR);
+    R(10,2,4,1,HAIR2); R(6,10,1,8,HAIR2); R(24,12,1,9,HAIR2); R(4,19,1,4,HAIR2); R(5,26,1,6,HAIR2); R(26,23,1,3,HAIR2); R(25,28,1,5,HAIR2);
+    /* neck, head */
+    R(13,16,5,4,SKIN2); R(9,6,13,10,SKIN); R(10,16,11,1,SKIN); R(11,17,9,1,SKIN);
+    /* centre part framing the face */
+    R(9,5,5,2,HAIR); R(17,5,5,2,HAIR); R(8,6,3,4,HAIR); R(20,6,3,4,HAIR); R(14,5,3,1,SKIN); R(8,10,2,5,HAIR); R(21,10,2,5,HAIR);
+    /* face */
+    var d = dir > 0 ? 1 : dir < 0 ? -1 : 0;
+    if (face === 'yuck') {
+      R(11+d,10,3,1,HAIR); R(17+d,10,3,1,HAIR); R(13+d,13,5,1,'#8d3b3b'); R(14+d,12,3,1,'#8d3b3b');
+    } else if (face === 'happy') {
+      R(11+d,10,1,1,HAIR); R(12+d,9,1,1,HAIR); R(13+d,10,1,1,HAIR); R(17+d,10,1,1,HAIR); R(18+d,9,1,1,HAIR); R(19+d,10,1,1,HAIR);
+      R(13+d,12,5,1,'#b4534f'); R(14+d,13,3,1,'#fbf7ef');
+    } else {
+      R(11+d,9,3,3,HAIR); R(17+d,9,3,3,HAIR); R(12+d,9,1,1,'#fff'); R(18+d,9,1,1,'#fff'); R(14+d,13,3,1,'#c9605a');
+    }
+    R(15+d,8,1,1,'#a8484f');                 /* bindi */
+    R(10,12,1,1,'#eb9c8d'); R(20,12,1,1,'#eb9c8d');
+    /* legs: black tights under a knee-length skirt */
+    var l = step === 1 ? -1 : 0, r2 = step === 2 ? -1 : 0;
+    R(11,40,3,3+l,TIGHT); R(17,40,3,3+r2,TIGHT); R(10,43+l,4,2,SHOE); R(17,43+r2,4,2,SHOE);
+    /* floral dress with puffed short sleeves */
+    R(10,19,11,8,DRESS); R(9,27,13,3,DRESS); R(8,30,15,4,DRESS); R(7,34,17,3,DRESS); R(6,37,19,3,DRESS);
+    R(8,19,3,4,DRESS); R(20,19,3,4,DRESS); R(7,20,1,2,DRESS); R(23,20,1,2,DRESS);
+    [[12,20],[17,20],[14,22],[19,23],[11,23],[9,20],[21,20],[9,33],[13,32],[17,32],[21,33],[11,35],[15,35],[19,35],[8,37],[13,38],[17,38],[22,37],[10,38],[20,39]].forEach(function (p) {
+      R(p[0],p[1],1,1,FLOWER); if ((p[0]+p[1]) % 2) { R(p[0]+1,p[1],1,1,FLOWER); }
+    });
+    /* hair falling over the shoulder */
+    R(7,17,3,8,HAIR); R(21,17,2,5,HAIR); R(8,18,1,6,HAIR2);
+    /* arms */
+    R(8,23,2,3,SKIN); R(21,24,2,2,SKIN); R(20,22,3,2,LINK);   /* scrunchie on her arm */
+    /* basket, held high so the dress shows below it */
+    R(7,25,17,1,BASK2); R(8,26,15,5,BASK); R(9,31,13,1,BASK2);
+    for (var i = 10; i < 22; i += 3) R(i,26,1,5,BASK2);
+    R(8,28,15,1,BASK2);
+    return c;
+  }
+  var girl = {};
+  ['calm','happy','yuck'].forEach(function (f) {
+    [-1,0,1].forEach(function (d) { [0,1,2].forEach(function (s) { girl[f+d+s] = makeGirl(s, f, d); }); });
+  });
+
+  /* ---------- Sound ---------- */
+  var audio = null, muted = false;
+  function initAudio() {
+    if (!audio) { try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { audio = null; } }
+    if (audio && audio.state === 'suspended') audio.resume();
+  }
+  function tone(f, t0, len, type, vol) {
+    if (!audio || muted) return;
+    var o = audio.createOscillator(), g = audio.createGain(), t = audio.currentTime + t0;
+    o.type = type || 'square'; o.frequency.value = f;
+    g.gain.setValueAtTime(vol || .05, t); g.gain.exponentialRampToValueAtTime(.001, t + len);
+    o.connect(g); g.connect(audio.destination); o.start(t); o.stop(t + len);
+  }
+  function sfx(kind) {
+    if (kind === 'love') { tone(660,0,.08); tone(990,.07,.12); }
+    else if (kind === 'fine') { tone(520,0,.1); }
+    else if (kind === 'dislike') { tone(240,0,.16,'triangle',.09); }
+    else if (kind === 'hate') { tone(170,0,.14,'sawtooth'); tone(110,.11,.22,'sawtooth'); }
+    else if (kind === 'done') { [523,659,784,1047].forEach(function (f,i) { tone(f,i*.11,.16); }); }
+    else if (kind === 'over') { [392,330,262].forEach(function (f,i) { tone(f,i*.16,.2,'triangle',.08); }); }
+  }
+
+  /* ---------- State ---------- */
+  var mode = 'title', score = 0, hearts = 3, clock = 0, aisle = 0, prevAisle = 0, slide = 1;
+  var items = [], floats = [], tally = {}, rim = [], spawnIn = 0, flash = 0, shake = 0;
+  var quip = null, keys = { l:false, r:false }, target = null;
+  var p = { x: W / 2, dir: 0, walk: 0, moving: false, face: 'calm', faceT: 0 };
+
+  function best(v) {
+    try {
+      if (v !== undefined) localStorage.setItem('grocery-run-best', String(v));
+      return parseInt(localStorage.getItem('grocery-run-best'), 10) || 0;
+    } catch (e) { return v || 0; }
+  }
+
+  function renderHearts() {
+    var box = $('hearts'); box.textContent = '';
+    box.setAttribute('aria-label', hearts + ' lives left');
+    for (var i = 0; i < 3; i++) {
+      var im = new Image(); im.src = heartURL; im.alt = '';
+      if (i >= hearts) im.className = 'lost';
+      box.appendChild(im);
+    }
+  }
+  var heartURL = sprite.heart.toDataURL();
+
+  function renderHud() {
+    $('scoreTag').textContent = score;
+    $('aisleCount').textContent = (aisle + 1) + '/' + TRIP;
+    $('bar').style.width = Math.min(100, clock / (TRIP * AISLE_SECONDS) * 100) + '%';
+  }
+
+  function begin() {
+    initAudio();
+    score = 0; hearts = 3; clock = 0; aisle = prevAisle = 0; slide = 1;
+    items = []; floats = []; tally = {}; rim = []; spawnIn = .3; quip = null; flash = shake = 0;
+    p.x = W / 2; p.face = 'calm'; target = null;
+    $('title').hidden = true; $('end').hidden = true;
+    mode = 'play'; renderHearts(); renderHud();
+  }
+
+  function pick() {
+    var d = clock / (TRIP * AISLE_SECONDS);
+    if (Math.random() < .38 + .2 * d) return BAD[Math.floor(Math.random() * BAD.length)];
+    var pool = GOOD.concat(AISLES[aisle].boost, AISLES[aisle].boost, ['strawberry','grapes']);
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  function spawn() {
+    var d = clock / (TRIP * AISLE_SECONDS);
+    items.push({ id: pick(), x: 9 + Math.random() * (W - 18), y: 22, v: (58 + 62 * d) * (.9 + Math.random() * .25), wob: Math.random() * 6 });
+    spawnIn = (.72 - .34 * d) * (.8 + Math.random() * .4);
+  }
+
+  function caught(it) {
+    var f = FOOD[it.id];
+    score += f.pts;
+    tally[it.id] = (tally[it.id] || 0) + 1;
+    floats.push({ text: (f.pts > 0 ? '+' : '') + f.pts, x: p.x, y: FLOOR - 20, t: 0, good: f.pts > 0 });
+    quip = { text: f.quip, t: 1.2, good: f.pts > 0 };
+    p.face = f.pts > 0 ? 'happy' : 'yuck'; p.faceT = .8;
+    if (f.pts > 0) { rim.push(f.hue); if (rim.length > 6) rim.shift(); }
+    sfx(f.tone);
+    if (f.tone === 'hate') {
+      hearts--; flash = .25; shake = reduced ? 0 : .25; renderHearts();
+      if (hearts <= 0) finish(false);
+    }
+    renderHud();
+  }
+
+  function finish(completed) {
+    mode = 'end'; items = [];
+    sfx(completed ? 'done' : 'over');
+    var old = best(), top = Math.max(old, score); best(top);
+    $('rHead').textContent = completed ? 'Thank you!' : 'Trip over!';
+    $('rSub').textContent = completed ? 'Five aisles done. Here is her basket.' : 'Three foods she hates. She left the store.';
+    var box = $('rLines'); box.textContent = '';
+    var ids = Object.keys(FOOD).filter(function (k) { return tally[k]; });
+    ids.forEach(function (k) {
+      var row = document.createElement('div'), a = document.createElement('span'), b = document.createElement('span');
+      a.textContent = FOOD[k].name + ' x' + tally[k];
+      var sum = FOOD[k].pts * tally[k]; b.textContent = (sum > 0 ? '+' : '') + sum;
+      row.appendChild(a); row.appendChild(b); box.appendChild(row);
+    });
+    if (!ids.length) box.textContent = 'Empty basket';
+    $('rTotal').textContent = score;
+    $('rBest').textContent = top;
+    var greens = tally.spinach || 0, note;
+    if (score > old && old > 0) note = 'New best trip!';
+    else if (!completed) note = 'Try dodging the bananas next time.';
+    else if (score >= 900) note = 'A perfect basket.';
+    else if (greens >= 5) note = 'Plenty of spinach. Good trip.';
+    else if (score >= 500) note = 'A very healthy basket.';
+    else note = 'Good start. Catch more spinach.';
+    $('rNote').textContent = note;
+    $('end').hidden = false;
+    $('end').scrollTop = 0;
+    $('again').focus({ preventScroll: true });
+  }
+
+  /* ---------- Update ---------- */
+  function update(dt) {
+    if (slide < 1) slide = Math.min(1, slide + dt / .7);
+    flash = Math.max(0, flash - dt); shake = Math.max(0, shake - dt);
+    if (quip) { quip.t -= dt; if (quip.t <= 0) quip = null; }
+    if (p.faceT > 0) { p.faceT -= dt; if (p.faceT <= 0) p.face = 'calm'; }
+    floats.forEach(function (f) { f.t += dt; f.y -= 22 * dt; });
+    floats = floats.filter(function (f) { return f.t < .9; });
+    if (mode !== 'play') { p.moving = false; return; }
+
+    clock += dt;
+    var next = Math.min(TRIP - 1, Math.floor(clock / AISLE_SECONDS));
+    if (next !== aisle) { prevAisle = aisle; aisle = next; slide = reduced ? 1 : 0; }
+    if (clock >= TRIP * AISLE_SECONDS) { renderHud(); finish(true); return; }
+
+    var speed = 165, before = p.x;
+    if (keys.l || keys.r) {
+      target = null;
+      p.x += ((keys.r ? 1 : 0) - (keys.l ? 1 : 0)) * speed * dt;
+    } else if (target !== null) {
+      var gap = target - p.x, stepMax = 230 * dt;
+      p.x += Math.abs(gap) < stepMax ? gap : (gap > 0 ? stepMax : -stepMax);
+    }
+    p.x = Math.max(13, Math.min(W - 13, p.x));
+    var moved = p.x - before;
+    p.moving = Math.abs(moved) > .05;
+    if (p.moving) { p.walk += dt * 9; p.dir = moved > 0 ? 1 : -1; } else { p.dir = 0; }
+
+    spawnIn -= dt; if (spawnIn <= 0) spawn();
+
+    for (var i = items.length - 1; i >= 0; i--) {
+      var it = items[i];
+      it.y += it.v * dt;
+      var bodyTop = FLOOR + 24 - 45;
+      if (it.y + 7 > bodyTop && it.y - 7 < FLOOR + 24 && Math.abs(it.x - p.x) < 15) {
+        items.splice(i, 1); caught(it);
+        if (mode !== 'play') return;
+      } else if (it.y > H + 10) { items.splice(i, 1); }
+    }
+    renderHud();
+  }
+
+  /* ---------- Draw ---------- */
+  function bgAt(idx, shift) {
+    var offset = Math.round((p.x - 13) / (W - 26) * (BG_W - W));
+    ctx.drawImage(bgs[idx], offset, 0, W, H, shift, 0, W, H);
+  }
+  function text(str, x, y, size, col, align, outline) {
+    ctx.font = size + 'px VT323, "Courier New", monospace';
+    ctx.textAlign = align || 'center'; ctx.textBaseline = 'middle';
+    if (outline) { ctx.lineWidth = 1.4; ctx.lineJoin = 'round'; ctx.strokeStyle = outline; ctx.strokeText(str, x, y); }
+    ctx.fillStyle = col; ctx.fillText(str, x, y);
+  }
+
+  function draw() {
+    ctx.setTransform(PX, 0, 0, PX, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+    if (shake > 0) ctx.translate(Math.round(Math.sin(shake * 60) * 2), 0);
+
+    if (slide < 1) {
+      var e = Math.round(slide * W);
+      bgAt(prevAisle, -e); bgAt(aisle, W - e);
+    } else { bgAt(aisle, 0); }
+
+    /* hanging aisle sign */
+    var sign = 'AISLE ' + (aisle + 1) + '  ' + AISLES[aisle].label;
+    ctx.fillStyle = '#5e7780'; ctx.fillRect(24, 26, 1, 8); ctx.fillRect(W - 25, 26, 1, 8);
+    ctx.fillStyle = '#e8483f'; ctx.fillRect(6, 33, W - 12, 13);
+    ctx.fillStyle = '#a52d29'; ctx.fillRect(6, 45, W - 12, 1);
+    ctx.font = '10px VT323, "Courier New", monospace';
+    var signSize = Math.min(10, 10 * (W - 18) / ctx.measureText(sign).width);
+    text(sign, W / 2, 39.5, signSize, '#fff6e0');
+
+    /* shadow, basket contents, Arathi */
+    var px = Math.round(p.x), py = FLOOR + 24;
+    ctx.fillStyle = 'rgba(40,60,70,.28)'; ctx.fillRect(px - 11, py - 1, 22, 3);
+    var step = p.moving ? (Math.floor(p.walk) % 2) + 1 : 0;
+    var bob = step ? (step === 1 ? -1 : 0) : 0;
+    ctx.drawImage(girl[p.face + p.dir + step], px - 15, py - 45 + bob);
+    rim.forEach(function (hue, i) {
+      ctx.fillStyle = '#2a2230'; ctx.fillRect(px - 7 + i * 2.5 | 0, py - 20 + bob, 3, 3);
+      ctx.fillStyle = hue; ctx.fillRect((px - 7 + i * 2.5 | 0), py - 21 + bob, 2, 2);
+    });
+
+    /* falling food with a pale halo so it stands out against the shelves */
+    items.forEach(function (it) {
+      var x = Math.round(it.x + Math.sin(it.y / 14 + it.wob) * 1.5) - 8, y = Math.round(it.y) - 8;
+      ctx.globalAlpha = .55; ctx.fillStyle = '#ffffff';
+      ctx.fillRect(x + 1, y - 1, 14, 18); ctx.fillRect(x - 1, y + 1, 18, 14);
+      ctx.globalAlpha = 1;
+      ctx.drawImage(sprite[it.id], x, y);
+    });
+
+    floats.forEach(function (f) {
+      ctx.globalAlpha = Math.max(0, 1 - f.t / .9);
+      text(f.text, f.x, f.y - 26, 13, f.good ? '#ffe27a' : '#ff9d9d', 'center', '#2a2230');
+      ctx.globalAlpha = 1;
+    });
+
+    if (quip) {
+      ctx.font = '9px VT323, "Courier New", monospace';
+      var tw = Math.ceil(ctx.measureText(quip.text).width) + 8;
+      var bx = Math.max(2, Math.min(W - tw - 2, px - tw / 2 | 0)), by = py - 62;
+      ctx.fillStyle = '#2a2230'; ctx.fillRect(bx - 1, by - 1, tw + 2, 13);
+      ctx.fillStyle = quip.good ? '#fbf6e9' : '#ffd9d3'; ctx.fillRect(bx, by, tw, 11);
+      ctx.fillStyle = '#2a2230'; ctx.fillRect(px - 1, by + 12, 3, 2);
+      text(quip.text, bx + tw / 2, by + 5.5, 9, '#2a2230');
+    }
+
+    if (flash > 0) { ctx.fillStyle = 'rgba(232,72,63,' + (flash * 1.1) + ')'; ctx.fillRect(0, 0, W, H); }
+  }
+
+  var last = performance.now();
+  function frame(now) {
+    var dt = Math.min(.05, (now - last) / 1000); last = now;
+    update(dt); draw();
+    requestAnimationFrame(frame);
+  }
+
+  /* ---------- Input ---------- */
+  function aim(e) {
+    if (mode !== 'play') return;
+    var r = canvas.getBoundingClientRect();
+    target = (e.clientX - r.left) / r.width * W;
+  }
+  addEventListener('pointerdown', aim);
+  addEventListener('pointermove', function (e) { if (e.pointerType === 'mouse' || e.buttons || e.pressure > 0) aim(e); });
+  addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') { keys.l = true; e.preventDefault(); }
+    if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') { keys.r = true; e.preventDefault(); }
+  });
+  addEventListener('keyup', function (e) {
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.l = false;
+    if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.r = false;
+  });
+  $('start').addEventListener('click', begin);
+  $('again').addEventListener('click', begin);
+  $('mute').addEventListener('click', function () {
+    muted = !muted; this.textContent = muted ? 'Unmute' : 'Mute';
+    this.setAttribute('aria-pressed', String(muted)); initAudio();
+  });
+
+  /* ---------- Fit the 9:16 screen ---------- */
+  function fit() {
+    var style = getComputedStyle(document.body);
+    var aw = document.body.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    var ah = document.body.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+    var w = Math.min(aw, ah * 9 / 16), h = w * 16 / 9;
+    var box = $('game'); box.style.width = Math.floor(w) + 'px'; box.style.height = Math.floor(h) + 'px';
+    var k = w / 360;                               /* HUD text follows the screen size */
+    box.style.fontSize = Math.max(.72, Math.min(1.25, k)) + 'em';
+  }
+  addEventListener('resize', fit); fit();
+
+  /* ---------- Title legend ---------- */
+  var groups = [
+    ['Loves', 'var(--leaf)', ['spinach','strawberry','grapes','milk','protein','oats']],
+    ['Fine', '#4aa3e0', ['apple']],
+    ['Too sugary or disliked', 'var(--amber)', ['watermelon','cucumber']],
+    ['Hates: lose a heart', 'var(--tomato)', ['banana','brinjal','pumpkin','gourd']]
+  ];
+  groups.forEach(function (gr) {
+    var row = document.createElement('div'); row.className = 'row'; row.style.setProperty('--c', gr[1]);
+    var head = document.createElement('b'); head.textContent = gr[0]; row.appendChild(head);
+    var wrap = document.createElement('div'); wrap.className = 'foods';
+    gr[2].forEach(function (id) {
+      var s = document.createElement('span'), im = new Image(), pts = FOOD[id].pts;
+      im.src = sprite[id].toDataURL(); im.alt = FOOD[id].name; im.title = FOOD[id].name;
+      s.appendChild(im); s.appendChild(document.createTextNode((pts > 0 ? '+' : '') + pts));
+      wrap.appendChild(s);
+    });
+    row.appendChild(wrap); $('legend').appendChild(row);
+  });
+
+  renderHearts(); renderHud(); draw();
+  if (document.fonts && document.fonts.load) document.fonts.load('10px VT323').then(draw, function () {});
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
