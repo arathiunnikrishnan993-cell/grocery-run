@@ -221,6 +221,9 @@ var QUALITIES = {
   "Asked a real question": { kind: "good", means: "Asks because they want to understand." },
   "Said it straight": { kind: "good", means: "Disagrees plainly and respectfully." },
   "Friendly hello": { kind: "good", means: "A warm greeting or goodbye." },
+  "Accepted the sorry": { kind: "good", means: "Accepts an apology and lets it go." },
+  "Said yes": { kind: "good", means: "Agrees to what was asked." },
+  "Kind reply": { kind: "good", means: "Answers thanks warmly." },
   "Stayed calm": { kind: "good", means: "Kept it calm after a hard message." },
   "Made it right": { kind: "good", means: "A real sorry. The lost presents come back." },
   "Just talking": { kind: "neutral", means: "Normal conversation. Plans, facts, questions and plain direct talk." },
@@ -235,6 +238,7 @@ var QUALITIES = {
   "Made excuses": { kind: "bad", means: "Hits back instead of taking in what was said.", fix: "Find the part that's true and own that." },
   "Shut it down": { kind: "bad", means: "Ends the conversation without dealing with it.", fix: "Say you need a break and when you'll come back." },
   "Brushed it off": { kind: "bad", means: "Passes over something that mattered to them.", fix: "Stop and ask about it." },
+  "Jumped to advice": { kind: "bad", means: "Tries to fix it before listening.", fix: "Ask how they feel first." },
   "Dug up old stuff": { kind: "bad", means: "Pulls old issues into this one.", fix: "Stick to the one thing that happened." },
   "Tried to bribe Santa": { kind: "bad", means: "Tries to talk Santa into presents.", fix: "Santa can't be bought." }
 };
@@ -275,7 +279,7 @@ var NICE = [
   { tag: "Offered help", pts: 3, re: /\blet me (help|do|handle|take|fix)\b|\bi can (help|do|take|handle)\b|\bi'?ll (help|do|handle|take care|fix)\b|\bhappy to help\b|\bneed (any )?help\b|\bwant me to\b/ },
   { tag: "Really listened", pts: 3, re: /\bi hear you\b|\bi understand\b|\bi get why\b|\bi see (what you mean|why)\b|\byou'?re right\b|\byou were right\b|\bthat makes sense\b|\bi agree\b|\bgood point\b|\bfair enough\b|\bsheriyanu\b|\bsheriya\b/ },
   { tag: "Owned up", pts: 2, re: /\bsorry\b(?!,? (but|if|that you))/ },
-  { tag: "Said how you feel", pts: 2, re: /\bi (feel|felt|am feeling|was feeling|miss you|need)\b|\bi'?m (feeling|hurt|sad|upset|worried|scared|tired|frustrated|anxious|stressed|glad|happy)\b|\benikk?u? (sankadam|vishamam|santhosham)\b/ },
+  { tag: "Said how you feel", pts: 2, re: /\bi (feel|felt|am feeling|was feeling|miss you|need)\b|\bi'?m (?:really |so |very |just |a bit )?(feeling|hurt|sad|upset|worried|scared|tired|frustrated|anxious|stressed|glad|happy)\b|\benikk?u? (sankadam|vishamam|santhosham)\b/ },
   { tag: "Asked nicely", pts: 2, re: /\b(could|would) (you|we)\b|\b(can|will) you please\b|\bplease\b|\bpls\b|\bplz\b|\bkindly\b|\bwhen you get time\b|\bif you can\b|\bcheyyamo\b|\btharamo\b/, not: /^please (don'?t|do not|stop)\b/ },
   { tag: "Asked a real question", pts: 2, re: /\bwhat do you think\b|\bhelp me understand\b|\bwhat did you mean\b|\bwhat would help\b|\bhow was\b|\bhow did it go\b|\bwhat happened\b|\bhow can i help\b|\benthu patti\b/ },
   { tag: "Said it straight", pts: 2, re: /\bi disagree\b|\bi don'?t think\b|\bi think we should\b/ },
@@ -299,10 +303,31 @@ function goodEnough(s) {
   var n = ["regret", "explanation", "responsibility", "repentance", "repair", "forgiveness"].filter(function (k) { return s[k]; }).length;
   return !!(s.is_sorry && s.responsibility && n >= 3);
 }
-function rules(text, mode, hardBefore) {
+var SHORT_REPLY = /^(ok|okay|k|kk|hmm+|hm|mm+|fine|oh|ohh|acha|achha|sheri|yeah|ya|yes|no|sure)[.!]*$/;
+function kindOf(prev) {
+  var p = String(prev.text || "").toLowerCase();
+  if (prev.score < 0 && !prev.fixes) return "rude";
+  if (prev.fixes || prev.tag === "Half a sorry" || /\bsorry\b/.test(p)) return "apology";
+  if (/\bi (feel|felt|am feeling|was feeling|miss)\b|\bi'?m (?:really |so |very |just |a bit )?(feeling|hurt|sad|upset|worried|scared|tired|frustrated|anxious|stressed|struggling)\b|\benikk?u? (sankadam|vishamam)\b/.test(p)) return "feeling";
+  if (/\b(i|we) (got|won|did it|signed|closed|finished)\b|\bgood news\b/.test(p)) return "goodnews";
+  if (prev.tag === "Said thanks" || prev.tag === "Cheered them on") return "thanks";
+  if (prev.tag === "Asked nicely" || /\b(can|could|will|would) you\b|\bplease\b|\bpls\b/.test(p)) return "request";
+  if (/\?\s*$/.test(p)) return "question";
+  return "";
+}
+var ROOM_RULE = {
+  office: { rude: 0, nice: 0 },
+  restaurant: { rude: 1, nice: 0 },
+  sofa: { rude: 1, nice: 0 },
+  lazy: { rude: 2, nice: 0 },
+  personal: { rude: -1, nice: 1 }
+};
+function rules(text, mode, prev) {
   var raw = String(text).trim(), t = raw.toLowerCase().replace(/[‘’]/g, "'").replace(/\s+/g, " ");
   var plain = t.replace(/[\u{1F300}-\u{1FAFF}]/gu, "").trim();
   var out = { tag: "Just talking", score: 0, note: "", underneath: "", rewrite: "", pause: false, sorry: sorryParts(t) };
+  var room = ROOM_RULE[mode] || ROOM_RULE.office, kind = prev ? kindOf(prev) : "", who = prev ? (prev.player === "arathi" ? "Arathi" : "Shaun") : "";
+  function done(tag, score, note) { out.tag = tag; out.score = score; out.note = note || QUALITIES[tag].means; return out; }
   if (PAUSE_RE.test(t)) { out.pause = true; return out; }
   var bad = RUDE.filter(function (c) {
     if (c.only && c.only !== mode) return false;
@@ -312,23 +337,33 @@ function rules(text, mode, hardBefore) {
     return !!m && !/\b(not|aren'?t|isn'?t|never)\b/.test(c.tag === "Mean remark" ? m[0] : "");
   });
   if (bad.length) {
-    var soft = LAUGH.test(t) && mode !== "personal" && bad.every(function (c) { return c.tag === "Mean remark" || c.tag === "Got personal" || c.tag === "Sarcastic"; });
-    if (soft) { out.tag = "Just teasing"; out.note = QUALITIES["Just teasing"].means; return out; }
+    var soft = LAUGH.test(t) && mode !== "personal" && kind !== "feeling" && kind !== "rude" && bad.every(function (c) { return c.tag === "Mean remark" || c.tag === "Got personal" || c.tag === "Sarcastic"; });
+    if (soft) return done("Just teasing", 0);
     bad.sort(function (a, b) { return a.pts - b.pts; });
-    out.tag = bad[0].tag;
-    out.score = clampScore(bad[0].pts + (bad[1] ? -1 : 0));
-    out.note = QUALITIES[out.tag].means;
-    return out;
+    var pts = bad[0].pts + (bad[1] ? -1 : 0) + Math.min(room.rude, -1 - (bad[0].pts + (bad[1] ? -1 : 0)));
+    var note = QUALITIES[bad[0].tag].means;
+    if (kind === "rude") { pts -= 1; note = "Answered rudeness with more rudeness, so it escalated."; }
+    else if (kind === "apology") { pts -= 1; note = who + " had just said sorry, and this hit back."; }
+    else if (kind === "feeling") { pts -= 1; note = who + " had just shared how they feel, so this landed harder."; }
+    else if (mode === "personal") note = "This is a personal talk, so it lands harder here.";
+    else if (room.rude > 0) note += " Lighter here because you're off duty.";
+    return done(bad[0].tag, clampScore(pts), note);
   }
   var good = NICE.filter(function (c) { return c.re.test(plain) && !(c.not && c.not.test(plain)); });
+  if (kind === "apology" && /\b(it'?s ok(ay)?|no problem|all good|forgiven|i forgive|thanks for saying)\b|\bdon'?t worry\b|\bno worries\b/.test(plain)) return done("Accepted the sorry", clampScore(3 + room.nice), who + " said sorry and you accepted it.");
+  if (kind === "thanks" && /\b(you'?re welcome|welcome|anytime|my pleasure|no problem|happy to)\b/.test(plain)) return done("Kind reply", 1);
+  if (kind === "feeling" && mode === "personal" && /^(you should|just |why don'?t you)/.test(plain)) return done("Jumped to advice", -1, who + " shared a feeling and you went straight to fixing it.");
   if (good.length) {
     good.sort(function (a, b) { return b.pts - a.pts; });
-    out.tag = good[0].tag;
-    out.score = clampScore(good[0].pts + (good[1] ? 1 : 0));
-    out.note = QUALITIES[out.tag].means;
-    return out;
+    var n = good[0].pts + (good[1] ? 1 : 0) + room.nice + (kind === "feeling" ? 1 : 0);
+    return done(good[0].tag, clampScore(n), kind === "feeling" ? who + " shared how they feel and you responded with care." : "");
   }
-  if (hardBefore) { out.tag = "Stayed calm"; out.score = 1; out.note = QUALITIES["Stayed calm"].means; return out; }
+  if (SHORT_REPLY.test(plain) && mode !== "lazy") {
+    if (kind === "feeling") return done("Brushed it off", mode === "personal" ? -3 : -2, who + " shared how they feel and got a one-word reply.");
+    if (kind === "goodnews") return done("Brushed it off", -1, who + " shared good news and got a one-word reply.");
+  }
+  if (kind === "request" && /^(yes|yeah|ya|sure|ok|okay|done|will do|on it|haan|sheri)\b/.test(plain)) return done("Said yes", 1);
+  if (kind === "rude") return done("Stayed calm", 1, who + " was rude and you stayed calm.");
   out.note = QUALITIES["Just talking"].means;
   return out;
 }
@@ -829,7 +864,7 @@ async function send() {
   var target = open.length ? open[open.length - 1] : null;
   await new Promise(function (r2) { setTimeout(r2, 350); });
   var lastM = current()[current().length - 1];
-  var r = rules(text, S.mode, !!(lastM && lastM.player !== me && lastM.score < 0 && !lastM.fixes));
+  var r = rules(text, S.mode, lastM && lastM.player !== me ? lastM : null);
   scene.thinking = null;
   if (target && r.sorry && r.sorry.is_sorry) {
     if (goodEnough(r.sorry)) { r.score = -target.score; r.tag = 'Made it right'; r.fixes = target.id; r.rewrite = ''; }
@@ -917,6 +952,7 @@ function renderLog() {
   var r = h('div', 'sheet'); r.append(h('h2', '', 'How Santa decides'));
   r.append(h('p', 'p', 'You both start tied. Santa reads every message and puts it in one of three groups. Nice earns 1 to 5 presents. Normal changes nothing. Rude costs 1 to 5 presents and puts you on the naughty list.'));
   r.append(h('p', 'p', 'Santa doesn’t pick a side. He looks at who a message is aimed at and how it’s softened, with the same rules for you both. Being direct is normal between friends. Calling a printer useless is normal, and calling a person useless is rude. If you laugh, he treats it as teasing.'));
+  r.append(h('p', 'p', 'He also looks at the last message and the room. A one-word reply to good news or to someone’s feelings can lose presents. Replying calmly to rudeness earns one. Accepting a sorry earns more. Rude words cost less at the Restaurant, on the Sofa and in Lazy mode, and more in Personal mode.'));
   r.append(h('h3', '', 'Getting back on the nice list'));
   r.append(h('p', 'p', 'Say a real sorry and your presents come back. Own your part, and tick at least 3 of these: regret, explaining what happened, owning it, saying it won’t happen again, offering to fix it, asking forgiveness.'));
   [['Nice', 'good'], ['Normal', 'neutral'], ['Rude', 'bad']].forEach(function (cc) {
