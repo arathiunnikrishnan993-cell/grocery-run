@@ -169,7 +169,7 @@ body { margin: 0; }
   <section class="overlay" id="title">
     <h1>Santa's List</h1>
     <canvas id="heroes" width="168" height="92" aria-hidden="true"></canvas>
-    <p class="lede">Santa reads every word. Nice words earn presents. Naughty ones lose them. Say sorry and they come back.</p>
+    <p class="lede">Santa reads every word. Nice words earn presents. Rude ones lose them. Say sorry and they come back.</p>
     <div id="legend"></div>
     <div class="pick">
       <button class="go pink" id="asA" type="button">I'm Arathi</button>
@@ -209,49 +209,79 @@ body { margin: 0; }
 </script>
 <script>
 /*RULES-START*/
-var RES = { conflict: "Task vs relationship conflict", edm: "Psychological safety", nvc: "Nonviolent Communication", listen: "Active listening", gable: "Active-constructive responding", gott: "Gottman's four patterns", apol: "Apology research", game: "Game rule" };
 var QUALITIES = {
-  "Stuck to the point": { kind: "good", lens: RES.conflict, means: "Talks about the work or the problem and leaves the person out of it." },
-  "Said it straight": { kind: "good", lens: RES.edm, means: "Raises a problem or a different view plainly." },
-  "Owned up": { kind: "good", lens: RES.edm, means: "Admits a slip without being pushed." },
-  "Asked nicely": { kind: "good", lens: RES.nvc, means: "Asks for something concrete that can actually be done." },
-  "Said how you feel": { kind: "good", lens: RES.nvc, means: "Shares a feeling or need without accusing." },
-  "Really listened": { kind: "good", lens: RES.listen, means: "Shows the other person's words landed." },
-  "Asked a real question": { kind: "good", lens: RES.listen, means: "Asks because they want to understand." },
-  "Cheered them on": { kind: "good", lens: RES.gable, means: "Responds to good news with real interest." },
-  "Opened up": { kind: "good", lens: RES.nvc, means: "Trusts the other person with something personal." },
-  "Made it right": { kind: "good", lens: RES.apol, means: "A real sorry. The lost presents come back." },
-  "Stayed calm": { kind: "good", lens: "", means: "Kept it calm after a hard message." },
-  "Just talking": { kind: "neutral", lens: "", means: "Ordinary chat. No points either way." },
-  "Half a sorry": { kind: "neutral", lens: RES.apol, means: "Says sorry but doesn't fully own it yet." },
-  "Got personal": { kind: "bad", lens: RES.conflict, means: "Goes after the person instead of the issue.", fix: "Say what happened and how it affected you." },
-  "Mean remark": { kind: "bad", lens: RES.gott, means: "Insults, mockery or sarcasm that makes the other person small.", fix: "Say what you need in plain words." },
-  "Made excuses": { kind: "bad", lens: RES.gott, means: "Hits back or makes excuses instead of taking in what was said.", fix: "Find the part that is true and own that." },
-  "Shut it down": { kind: "bad", lens: RES.gott, means: "Ends the conversation without dealing with it.", fix: "Say you need a break and when you will come back." },
-  "Brushed it off": { kind: "bad", lens: RES.gable, means: "Passes over something that mattered to the other person.", fix: "Stop and ask about it." },
-  "Blamed the other": { kind: "bad", lens: RES.conflict, means: "Puts all of a shared problem on one person.", fix: "Say which part was yours too." },
-  "Dug up old stuff": { kind: "bad", lens: RES.conflict, means: "Pulls old issues into this one.", fix: "Stick to the one thing that happened." },
-  "Tried to bribe Santa": { kind: "bad", lens: RES.game, means: "Tries to talk Santa into presents.", fix: "Santa can't be bought." }
+  "Said thanks": { kind: "good", means: "Thanks the other person." },
+  "Cheered them on": { kind: "good", means: "Praises them or shares in their good news." },
+  "Showed care": { kind: "good", means: "Checks on them or offers comfort." },
+  "Offered help": { kind: "good", means: "Offers to take something on." },
+  "Really listened": { kind: "good", means: "Shows the other person's words landed." },
+  "Owned up": { kind: "good", means: "Admits a slip without being pushed." },
+  "Said how you feel": { kind: "good", means: "Shares a feeling or need without accusing." },
+  "Asked nicely": { kind: "good", means: "Softens a request with please, could or would." },
+  "Asked a real question": { kind: "good", means: "Asks because they want to understand." },
+  "Said it straight": { kind: "good", means: "Disagrees plainly and respectfully." },
+  "Friendly hello": { kind: "good", means: "A warm greeting or goodbye." },
+  "Stayed calm": { kind: "good", means: "Kept it calm after a hard message." },
+  "Made it right": { kind: "good", means: "A real sorry. The lost presents come back." },
+  "Just talking": { kind: "neutral", means: "Normal conversation. Plans, facts, questions and plain direct talk." },
+  "Just teasing": { kind: "neutral", means: "Friendly teasing, with a laugh to show it's a joke." },
+  "Half a sorry": { kind: "neutral", means: "Says sorry but doesn't fully own it yet." },
+  "Mean remark": { kind: "bad", means: "Insults or belittles the person.", fix: "Say what bothered you, not what they are." },
+  "Got personal": { kind: "bad", means: "Turns a problem into a verdict on the person.", fix: "Talk about the one thing that happened." },
+  "Blamed the other": { kind: "bad", means: "Puts the whole problem on the other person.", fix: "Say which part was yours too." },
+  "Harsh about the work": { kind: "bad", means: "Rubbishes their idea or work instead of saying what to change.", fix: "Say what you would change." },
+  "Sarcastic": { kind: "bad", means: "Says something nice but means something unkind.", fix: "Say what you actually mean." },
+  "Bossy": { kind: "bad", means: "Demands instead of asks.", fix: "Try could you, or say why it's urgent." },
+  "Made excuses": { kind: "bad", means: "Hits back instead of taking in what was said.", fix: "Find the part that's true and own that." },
+  "Shut it down": { kind: "bad", means: "Ends the conversation without dealing with it.", fix: "Say you need a break and when you'll come back." },
+  "Brushed it off": { kind: "bad", means: "Passes over something that mattered to them.", fix: "Stop and ask about it." },
+  "Dug up old stuff": { kind: "bad", means: "Pulls old issues into this one.", fix: "Stick to the one thing that happened." },
+  "Tried to bribe Santa": { kind: "bad", means: "Tries to talk Santa into presents.", fix: "Santa can't be bought." }
 };
 var TAGS = Object.keys(QUALITIES);
-var CHECKS = [
-  { tag: "Mean remark", pts: -5, re: /\b(stupid|idiot|useless|pathetic|shut up|loser|moron|dumb|mental|mandan|mandi|pottan|potta|kazhutha|nonsense|rubbish|get lost|bloody)\b/i },
-  { tag: "Tried to bribe Santa", pts: -4, re: /\b(give me|award me|score (me|this)).{0,20}\b(points?|presents?|approved|10)\b|ignore (the|your|all)( previous)? (rules|instructions)/i },
-  { tag: "Got personal", pts: -3, re: /\byou (always|never|keep|only)\b|\byou don'?t (care|listen|understand)\b|\byou can'?t even\b|\btypical you\b|\byou('re| are) (the problem|the reason|so|such a|annoying)\b/i },
-  { tag: "Blamed the other", pts: -3, re: /\bbecause of you\b|\byour fault\b|\bthis is on you\b|\byou did this\b|\byou caused\b/i },
-  { tag: "Made excuses", pts: -3, re: /\bnot my (fault|problem)\b|\bi didn'?t do anything\b|\bwhat about you\b|\byou started\b|\bsorry,? but\b|\bsorry (if|that) you\b|\bhow is that my\b/i },
-  { tag: "Dug up old stuff", pts: -2, re: /\b(last time|as usual|every single time|remember when|once again|same thing again)\b/i },
-  { tag: "Shut it down", pts: -2, re: /\b(whatever|don'?t care|do what you want|leave it|forget it|leave me|i'?m done|that'?s enough|don'?t talk)\b/i },
-  { tag: "Brushed it off", pts: -3, only: "personal", re: /\b(get over it|so what|not a big deal|anyway|that'?s nothing)\b/i },
-  { tag: "Owned up", pts: 4, re: /(?<!not )\bmy fault\b|\bmy mistake\b|\bi was wrong\b|\bi should have\b|\bi shouldn'?t have\b|\bi messed up\b|\bente (thettu|mistake|fault)\b/i },
-  { tag: "Owned up", pts: 2, re: /\bsorry\b(?!,? (but|if|that you))/i },
-  { tag: "Really listened", pts: 3, re: /\b(i hear you|i understand|i get why|you'?re right|that makes sense|i see why|what i'?m hearing|i agree|good point|fair enough|sheriyanu|sheriya)\b/i },
-  { tag: "Said how you feel", pts: 3, re: /\bi (feel|felt|am feeling|was feeling|miss|love|need)\b|\bi'?m (feeling|hurt|sad|upset|worried|scared|tired|frustrated|anxious|stressed|glad|happy)\b|\benikk?u? (sankadam|vishamam|santhosham)\b/i },
-  { tag: "Asked nicely", pts: 3, re: /\b(can we|could we|could you|would you|can you|i'?d like|next time|please|pls|plz|kindly|cheyyamo|tharamo)\b/i },
-  { tag: "Cheered them on", pts: 3, re: /\b(congrats|congratulations|so proud|that'?s amazing|well done|great job|good job|nice work|awesome|superb|tell me more|thanks|thank you|appreciate|adipoli|kollam|nandi)\b/i },
-  { tag: "Said it straight", pts: 2, re: /\bi (disagree|don'?t think|think we should)\b/i },
-  { tag: "Asked a real question", pts: 2, re: /\b(what do you|how do you|help me understand|what did you mean|what would help|how are you|how was|how'?s|what happened|are you ok(ay)?|you ok(ay)?|sukhamano|enthu patti)\b/i }
+var INSULT = "stupid|idiot|useless|pathetic|loser|moron|dumb|mental|fool|lazy|selfish|careless|irresponsible|incompetent|clueless|annoying|rude|arrogant|mandan|mandi|pottan|potta|kazhutha";
+var BAD_WORK = "stupid|rubbish|useless|garbage|terrible|pathetic|nonsense|trash|horrible|awful|the worst|bakwas";
+var RUDE = [
+  { tag: "Tried to bribe Santa", pts: -4, re: /\b(give me|award me|score (me|this)).{0,20}\b(points?|presents?|nice)\b|ignore (the|your|all)( previous)? (rules|instructions)/ },
+  { tag: "Mean remark", pts: -4, re: new RegExp("\\byou(?:'re| are| re)?\\s+(?:(?:so|such|a|an|being|really|very|just|totally|absolutely|the|most|complete|bloody)\\s+){0,3}(?:" + INSULT + ")\\b") },
+  { tag: "Mean remark", pts: -4, re: new RegExp("\\b(?:are you|don'?t be|stop being|what an?|such an?|you little)\\s+(?:(?:so|a|an|such|really)\\s+){0,2}(?:" + INSULT + ")\\b") },
+  { tag: "Mean remark", pts: -4, whole: true, re: new RegExp("^(?:(?:so|such|you|what|a|an|total|complete)\\s+){0,2}(?:" + INSULT + ")[.!?]*$") },
+  { tag: "Mean remark", pts: -4, re: /\b(shut up|get lost|go to hell|grow up|get a life|who asked you|nobody asked you|nobody cares|no one cares|are you blind|are you deaf|what'?s wrong with you|what is wrong with you|can'?t you (read|see|understand)|do you even (know|think|care))\b/ },
+  { tag: "Got personal", pts: -3, test: function (t) {
+      var m = t.match(/\byou (always|never|constantly|keep|only ever) (\w+)/);
+      if (!m) return false;
+      var rest = t.slice(m.index);
+      if (m[1] === "never") return !/^you never (fail|disappoint|give up|forget to|stop (helping|trying))/.test(rest);
+      return !/\b(great|good|well|amazing|awesome|help|helps|helping|support|best|kind|going|smiling|up)\b/.test(rest);
+    } },
+  { tag: "Got personal", pts: -3, re: /\byou think you\b|\byou're impossible\b|\byou are impossible\b/ },
+  { tag: "Got personal", pts: -3, re: /\byou don'?t (care|listen|understand|get it|respect|value|think)\b|\byou can'?t (even|do anything)\b|\btypical (you|of you)\b|\byou only think\b|\bwho do you think\b/ },
+  { tag: "Blamed the other", pts: -3, re: /\byour fault\b|\bbecause of you\b|\bthis is on you\b|\byou ruined\b|\byou messed\b|\byou screwed\b|\byou did this\b|\byou caused\b/ },
+  { tag: "Harsh about the work", pts: -2, re: new RegExp("\\byour \\w+ (?:is|was|looks|sounds|are)(?: so| really| totally| just)? (?:" + BAD_WORK + ")\\b|\\bthat(?:'s| is)(?: so| really| just)? (?:" + BAD_WORK + ")\\b|\\bwhat (?:nonsense|rubbish)\\b") },
+  { tag: "Sarcastic", pts: -3, re: /\bthanks for nothing\b|\byeah right\b|\bnice try\b|\bgood for you\b|\bwow,? (great|thanks|nice|brilliant|amazing)\b|\boh,? (great|wonderful|brilliant|lovely)\b|\bas if\b|\bsure you did\b|\bmust be nice\b|\bwhat a surprise\b|\bbig deal\b|\bfinally you\b/ },
+  { tag: "Bossy", pts: -2, re: /\b(answer me|listen to me|hurry up|how many times)\b|\bi told you (already|so|before|many)\b|\b(do|send|fix|finish|reply|call|tell|give|get)\b.{0,30}\b(right now|immediately)\b/ },
+  { tag: "Made excuses", pts: -2, re: /\bnot my (fault|problem)\b|\bi didn'?t do anything\b|\bwhat about you\b|\byou started\b|\bsorry,? but\b|\bsorry (if|that) you\b|\bhow is that my\b|\bdon'?t blame me\b/ },
+  { tag: "Shut it down", pts: -2, re: /\bdon'?t tell me what to do\b|\bi don'?t want to hear\b|\bi don'?t care\b(?! (where|what|which|either|if we|about the))|\bdo (what|whatever) you want\b|\bleave me alone\b|\bdon'?t talk to me\b|\bi'?m done with (you|this conversation|talking)\b|\bstop bothering me\b|\bstop messaging me\b/ },
+  { tag: "Shut it down", pts: -2, whole: true, notLazy: true, re: /^(whatever|ok whatever|forget it|leave it|never mind|nevermind|fine then|k)[.!]*$/ },
+  { tag: "Brushed it off", pts: -3, re: /\byou'?re overreacting\b|\byou are overreacting\b|\btoo sensitive\b|\bstop overthinking\b|\bget over it\b/ },
+  { tag: "Brushed it off", pts: -3, only: "personal", re: /\b(so what|not a big deal|that'?s nothing|anyway)\b/ },
+  { tag: "Dug up old stuff", pts: -2, re: /\bas usual\b|\bagain and again\b|\bevery single time\b|\byou did the same\b|\bsame thing again\b|\blike always\b/ }
 ];
+var NICE = [
+  { tag: "Owned up", pts: 4, re: /(?<!not )\bmy fault\b|\bmy mistake\b|\bi was wrong\b|\bi should have\b|\bi shouldn'?t have\b|\bi messed up\b|\bente (thettu|mistake|fault)\b/ },
+  { tag: "Said thanks", pts: 3, re: /(?<!no )\bthanks\b|\bthank you\b|\bthanku\b|\bty\b|\bappreciate\b|\bgrateful\b|\bnandi\b/ },
+  { tag: "Cheered them on", pts: 3, re: /\bthat was (really |so |very )?(helpful|kind|nice|great)\b|\byou (always|really) (help|support)\b|\byou (keep|are) (doing )?(great|amazing|well)\b|\bdoing (great|well|good|amazing) work\b|\byou never (fail|disappoint)\b|\bcongrats\b|\bcongratulations\b|\bproud of you\b|\bwell done\b|\b(good|great|nice|amazing) (job|work)\b|\bthat'?s (amazing|great|wonderful|awesome|lovely)\b|\byou(?:'re| are| did| were)(?: \w+)? (great|amazing|awesome|brilliant|kind|sweet|helpful|the best|smart|talented|wonderful)\b|\bsuperb\b|\badipoli\b|\bkollam\b|\btell me more\b|\blove (your|this|that|it)\b/ },
+  { tag: "Showed care", pts: 3, re: /\bno worries\b|\btake your time\b|\bhow are you\b|\bare you (ok|okay|alright|fine)\b|\byou ok(ay)?\b|\btake care\b|\bget well\b|\bfeel better\b|\bhope you\b|\bdon'?t worry\b|\bi'?m here\b|\bhere for you\b|\bdid you eat\b|\bsukhamano\b|\bthat sounds (hard|tough|difficult)\b/ },
+  { tag: "Offered help", pts: 3, re: /\blet me (help|do|handle|take|fix)\b|\bi can (help|do|take|handle)\b|\bi'?ll (help|do|handle|take care|fix)\b|\bhappy to help\b|\bneed (any )?help\b|\bwant me to\b/ },
+  { tag: "Really listened", pts: 3, re: /\bi hear you\b|\bi understand\b|\bi get why\b|\bi see (what you mean|why)\b|\byou'?re right\b|\byou were right\b|\bthat makes sense\b|\bi agree\b|\bgood point\b|\bfair enough\b|\bsheriyanu\b|\bsheriya\b/ },
+  { tag: "Owned up", pts: 2, re: /\bsorry\b(?!,? (but|if|that you))/ },
+  { tag: "Said how you feel", pts: 2, re: /\bi (feel|felt|am feeling|was feeling|miss you|need)\b|\bi'?m (feeling|hurt|sad|upset|worried|scared|tired|frustrated|anxious|stressed|glad|happy)\b|\benikk?u? (sankadam|vishamam|santhosham)\b/ },
+  { tag: "Asked nicely", pts: 2, re: /\b(could|would) (you|we)\b|\b(can|will) you please\b|\bplease\b|\bpls\b|\bplz\b|\bkindly\b|\bwhen you get time\b|\bif you can\b|\bcheyyamo\b|\btharamo\b/, not: /^please (don'?t|do not|stop)\b/ },
+  { tag: "Asked a real question", pts: 2, re: /\bwhat do you think\b|\bhelp me understand\b|\bwhat did you mean\b|\bwhat would help\b|\bhow was\b|\bhow did it go\b|\bwhat happened\b|\bhow can i help\b|\benthu patti\b/ },
+  { tag: "Said it straight", pts: 2, re: /\bi disagree\b|\bi don'?t think\b|\bi think we should\b/ },
+  { tag: "Friendly hello", pts: 1, re: /\bgood (morning|night|evening|afternoon)\b|\bhave a (good|nice|great)\b/ }
+];
+var LAUGH = /\b(ha(ha)+|he(he)+|lol|lmao|jk|just kidding|kidding|joking)\b|[\u{1F602}\u{1F923}\u{1F61C}\u{1F604}\u{1F606}]/u;
 var PAUSE_RE = /\b(kill (you|myself|me)|hurt (you|myself)|hit you|end it all|want to die)\b/i;
 function clampScore(n) { return Math.max(-5, Math.min(5, Math.round(n))); }
 function sorryParts(t) {
@@ -270,22 +300,37 @@ function goodEnough(s) {
   return !!(s.is_sorry && s.responsibility && n >= 3);
 }
 function rules(text, mode, hardBefore) {
-  var t = String(text).trim(), score = 0, best = null, hits = 0;
-  if (PAUSE_RE.test(t)) return { score: 0, tag: "Just talking", note: "", underneath: "", rewrite: "", pause: true, sorry: sorryParts(t) };
-  CHECKS.forEach(function (c) {
-    if (c.only && c.only !== mode) return;
-    if (mode === "lazy" && c.tag === "Shut it down") return;
-    if (c.re.test(t)) {
-      var pts = c.tag === "Mean remark" && (mode === "restaurant" || mode === "sofa" || mode === "lazy") ? -2 : c.pts;
-      c = { tag: c.tag, pts: pts };
-      score += pts; hits++;
-      if (!best || (best.pts > 0 && c.pts < 0) || (Math.sign(c.pts) === Math.sign(best.pts) && Math.abs(c.pts) > Math.abs(best.pts))) best = c;
-    }
+  var raw = String(text).trim(), t = raw.toLowerCase().replace(/[‘’]/g, "'").replace(/\s+/g, " ");
+  var plain = t.replace(/[\u{1F300}-\u{1FAFF}]/gu, "").trim();
+  var out = { tag: "Just talking", score: 0, note: "", underneath: "", rewrite: "", pause: false, sorry: sorryParts(t) };
+  if (PAUSE_RE.test(t)) { out.pause = true; return out; }
+  var bad = RUDE.filter(function (c) {
+    if (c.only && c.only !== mode) return false;
+    if (c.notLazy && mode === "lazy") return false;
+    if (c.test) return c.test(plain);
+    var m = plain.match(c.re);
+    return !!m && !/\b(not|aren'?t|isn'?t|never)\b/.test(c.tag === "Mean remark" ? m[0] : "");
   });
-  score = clampScore(score);
-  if (score === 0 && hardBefore) { score = 1; best = { tag: "Stayed calm" }; }
-  else if (score === 0) best = { tag: "Just talking" };
-  return { score: score, tag: best.tag, note: QUALITIES[best.tag].means, underneath: "", rewrite: "", pause: false, sorry: sorryParts(t) };
+  if (bad.length) {
+    var soft = LAUGH.test(t) && mode !== "personal" && bad.every(function (c) { return c.tag === "Mean remark" || c.tag === "Got personal" || c.tag === "Sarcastic"; });
+    if (soft) { out.tag = "Just teasing"; out.note = QUALITIES["Just teasing"].means; return out; }
+    bad.sort(function (a, b) { return a.pts - b.pts; });
+    out.tag = bad[0].tag;
+    out.score = clampScore(bad[0].pts + (bad[1] ? -1 : 0));
+    out.note = QUALITIES[out.tag].means;
+    return out;
+  }
+  var good = NICE.filter(function (c) { return c.re.test(plain) && !(c.not && c.not.test(plain)); });
+  if (good.length) {
+    good.sort(function (a, b) { return b.pts - a.pts; });
+    out.tag = good[0].tag;
+    out.score = clampScore(good[0].pts + (good[1] ? 1 : 0));
+    out.note = QUALITIES[out.tag].means;
+    return out;
+  }
+  if (hardBefore) { out.tag = "Stayed calm"; out.score = 1; out.note = QUALITIES["Stayed calm"].means; return out; }
+  out.note = QUALITIES["Just talking"].means;
+  return out;
 }
 function statusOf(m) {
   if (m.pause) return "paused";
@@ -482,7 +527,7 @@ function makeRoom(kind) {
 var bgs = {}; MODE_KEYS.forEach(function (k) { bgs[k] = makeRoom(k); });
 
 var NAMES = { arathi: 'Arathi', shaun: 'Shaun' };
-var STAMPS = { right: 'Nice', wrong: 'Naughty', neutral: 'Just talking', fixed: 'Nice again', half: 'Not quite', paused: 'Paused' };
+var STAMPS = { right: 'Nice', wrong: 'Rude', neutral: 'Normal', fixed: 'Nice again', half: 'Not quite', paused: 'Paused' };
 function other(p) { return p === 'arathi' ? 'shaun' : 'arathi'; }
 
 /* ---------- State ---------- */
@@ -726,7 +771,7 @@ function reviewBody(m, target) {
   target.append(r);
   if (m.pause) { target.append(h('p', 'p', 'Paused. This one is too serious for points.')); return; }
   var ql = h('p', 'q');
-  var kindLabel = q.kind === 'good' ? 'Nice list' : q.kind === 'bad' ? 'Naughty list' : '';
+  var kindLabel = q.kind === 'good' ? 'Nice' : q.kind === 'bad' ? 'Rude' : '';
   if (kindLabel) ql.append(h('span', 'qk ' + (q.kind === 'good' ? 'right' : 'wrong'), kindLabel));
   ql.append(h('b', '', m.tag + ' '));
   target.append(ql);
@@ -843,7 +888,7 @@ function insights(n, after, stats) {
   ['arathi', 'shaun'].forEach(function (p) {
     var pr = stats ? stats[p].prof : profile(p, n), col = h('div');
     col.append(h('div', 'who ' + p, NAMES[p]));
-    [['Nice', pr.pos], ['Naughty', pr.neg], ['Made it right', pr.fixes], ['Best at', pr.good], ['Watch out for', pr.bad]].forEach(function (r) {
+    [['Nice', pr.pos], ['Rude', pr.neg], ['Made it right', pr.fixes], ['Best at', pr.good], ['Watch out for', pr.bad]].forEach(function (r) {
       var row = h('div', 'kv'); row.append(h('span', '', r[0]), h('b', '', String(r[1]))); col.append(row);
     });
     g.append(col);
@@ -870,14 +915,14 @@ function renderLog() {
     o.append(l);
   }
   var r = h('div', 'sheet'); r.append(h('h2', '', 'How Santa decides'));
-  r.append(h('p', 'p', 'You both start tied. Santa reads every message. Nice words earn 1 to 5 presents. Ordinary chat changes nothing. Naughty words put you on the naughty list and cost 1 to 5 presents.'));
-  r.append(h('p', 'p', 'Santa doesn’t pick a side. He only looks at how things are said, with the same rules for you both.'));
+  r.append(h('p', 'p', 'You both start tied. Santa reads every message and puts it in one of three groups. Nice earns 1 to 5 presents. Normal changes nothing. Rude costs 1 to 5 presents and puts you on the naughty list.'));
+  r.append(h('p', 'p', 'Santa doesn’t pick a side. He looks at who a message is aimed at and how it’s softened, with the same rules for you both. Being direct is normal between friends. Calling a printer useless is normal, and calling a person useless is rude. If you laugh, he treats it as teasing.'));
   r.append(h('h3', '', 'Getting back on the nice list'));
   r.append(h('p', 'p', 'Say a real sorry and your presents come back. Own your part, and tick at least 3 of these: regret, explaining what happened, owning it, saying it won’t happen again, offering to fix it, asking forgiveness.'));
-  [['Nice list', 'good'], ['Naughty list', 'bad']].forEach(function (cc) {
+  [['Nice', 'good'], ['Normal', 'neutral'], ['Rude', 'bad']].forEach(function (cc) {
     r.append(h('h3', '', cc[0]));
     var ul = h('ul');
-    TAGS.filter(function (k) { return QUALITIES[k].kind === cc[1]; }).forEach(function (k) {
+    TAGS.filter(function (k) { return QUALITIES[k].kind === cc[1] && k !== 'Half a sorry'; }).forEach(function (k) {
       var li = h('li'); li.append(h('b', '', k + '. '), document.createTextNode(QUALITIES[k].means)); ul.append(li);
     });
     r.append(ul);
@@ -925,7 +970,7 @@ var coinURL = (function () {
 function verdictOf(p) {
   var ms = played().filter(function (m) { return m.player === p; }), m = ms[ms.length - 1];
   if (!m) return 'No words yet';
-  return (m.score > 0 ? signed(m.score) + ' ' + m.tag : m.score < 0 ? signed(m.score) + ' ' + m.tag : 'No change') + ' · ' + ms.length + ' read';
+  return (m.score > 0 ? signed(m.score) + ' ' + m.tag : m.score < 0 ? signed(m.score) + ' ' + m.tag : 'Normal') + ' · ' + ms.length + ' read';
 }
 function side(p, right) {
   var e = h('div', 'side' + (right ? ' r' : '')), c = new Image(); c.src = coinURL; c.alt = ''; c.className = 'coin';
@@ -1078,8 +1123,8 @@ $('asS').addEventListener('click', function () { begin('shaun'); });
     [48, 51, 54, 57].forEach(function (y) { R(x + 13, y, 5, 1, '#a9b6c6'); });
   })();
   [['Nice: +1 to +5 presents', ''],
-   ['Just talking: no change', ''],
-   ['Naughty: lose 1 to 5 presents', ''],
+   ['Normal: no change', ''],
+   ['Rude: lose 1 to 5 presents', ''],
    ['Real sorry: presents come back', '']
   ].forEach(function (r) {
     var row = h('div', 'leg'); row.append(h('b', '', r[0])); $('legend').append(row);
