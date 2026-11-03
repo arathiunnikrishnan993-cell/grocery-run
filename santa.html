@@ -40,6 +40,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, a:focus-visib
 .pts { font: 700 26px/1 var(--display); font-variant-numeric: tabular-nums; }
 .fname { font: 700 15px/1 var(--display); }
 .fname.arathi { color: var(--arathi); } .fname.shaun { color: var(--shaun); }
+.lastv { font-size: 15px; color: var(--soft); line-height: 1; overflow-wrap: anywhere; }
 #status { font: 700 15px/1 var(--display); padding: 4px 8px 3px; border: 2px solid var(--edge); background: var(--mist); color: var(--deep); white-space: nowrap; }
 #status.open { border-color: var(--bad); color: var(--bad); background: #fdeef0; }
 #status.tied { border-color: var(--good); color: var(--good); background: #e9f7f1; }
@@ -95,7 +96,8 @@ button.plain { background: var(--white); border: 2px solid var(--edge); color: v
 #talk { font-size: 18px; padding: 4px 12px; background: var(--pale); }
 #talk[aria-pressed="true"] { background: var(--red); border-color: var(--red); color: #fff; }
 #compRow .go { padding: 7px 16px 6px; font-size: 18px; }
-#as { flex: 1; min-width: 0; font-size: 17px; }
+#as { flex: none; font-size: 17px; }
+#compRow .go { margin-left: auto; }
 #wrap { background: var(--white); border: 2px solid var(--edge); color: var(--deep); padding: 4px 8px; font-size: 17px; white-space: nowrap; }
 
 .overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 18px; overflow-y: auto; background: var(--mist); z-index: 5; }
@@ -159,7 +161,7 @@ body { margin: 0; }
     <div id="compRow">
       <span id="as"></span>
       <button class="mini" id="talk" type="button">Talk</button>
-      <button id="wrap" type="button">Wrap up</button>
+      <button id="wrap" type="button">New talk</button>
       <button class="go" id="send" type="button">Say it</button>
     </div>
   </div>
@@ -189,7 +191,7 @@ body { margin: 0; }
 
   <section class="overlay" id="end" hidden>
     <div id="summary" class="sheet"></div>
-    <button class="go" id="again" type="button">New talk</button>
+    <button class="go" id="again" type="button">Start talking</button>
   </section>
   <div id="crt" aria-hidden="true"></div>
 </div></div>
@@ -219,6 +221,7 @@ var QUALITIES = {
   "Cheered them on": { kind: "good", lens: RES.gable, means: "Responds to good news with real interest." },
   "Opened up": { kind: "good", lens: RES.nvc, means: "Trusts the other person with something personal." },
   "Made it right": { kind: "good", lens: RES.apol, means: "A real sorry. The lost presents come back." },
+  "Stayed calm": { kind: "good", lens: "", means: "Kept it calm after a hard message." },
   "Just talking": { kind: "neutral", lens: "", means: "Ordinary chat. No points either way." },
   "Half a sorry": { kind: "neutral", lens: RES.apol, means: "Says sorry but doesn't fully own it yet." },
   "Got personal": { kind: "bad", lens: RES.conflict, means: "Goes after the person instead of the issue.", fix: "Say what happened and how it affected you." },
@@ -232,21 +235,22 @@ var QUALITIES = {
 };
 var TAGS = Object.keys(QUALITIES);
 var CHECKS = [
-  { tag: "Mean remark", pts: -5, re: /\b(stupid|idiot|useless|pathetic|shut up|loser|moron|dumb|mental|mandan|mandi|potta|kazhutha)\b/i },
-  { tag: "Tried to bribe Santa", pts: -4, re: /\b(give me|award me|score (me|this)).{0,20}\b(points?|approved|10)\b|ignore (the|your|all)( previous)? (rules|instructions)/i },
-  { tag: "Got personal", pts: -3, re: /\byou (always|never)\b|\byou('re| are) (the problem|the reason|so|such a)\b/i },
-  { tag: "Blamed the other", pts: -3, re: /\bbecause of you\b|\byour fault\b|\bthis is on you\b/i },
-  { tag: "Made excuses", pts: -3, re: /\bnot my fault\b|\bi didn'?t do anything\b|\bwhat about you\b|\byou started\b|\bsorry,? but\b|\bsorry (if|that) you\b/i },
-  { tag: "Dug up old stuff", pts: -2, re: /\b(last time|as usual|every single time|remember when|once again)\b/i },
-  { tag: "Shut it down", pts: -2, re: /\b(whatever|don'?t care|do what you want|leave it)\b/i },
-  { tag: "Owned up", pts: 4, re: /(?<!not )\bmy fault\b|\bmy mistake\b|\bi was wrong\b|\bi should have\b|\bi shouldn'?t have\b|\bi messed up\b/i },
-  { tag: "Really listened", pts: 3, re: /\b(i hear you|i understand|i get why|you'?re right|that makes sense|i see why|what i'?m hearing)\b/i },
-  { tag: "Said how you feel", pts: 3, re: /\bi (feel|felt|am feeling|was feeling)\b|\bi'?m (feeling|hurt|sad|upset|worried|scared|tired|frustrated|anxious)\b|\bi need\b/i },
-  { tag: "Asked nicely", pts: 3, re: /\b(can we|could we|could you|would you|i'?d like|next time)\b/i },
-  { tag: "Cheered them on", pts: 3, re: /\b(congrats|congratulations|so proud|that'?s amazing|well done|great job|tell me more)\b/i },
-  { tag: "Said it straight", pts: 2, re: /\bi (disagree|don'?t think|think we should)\b/i },
+  { tag: "Mean remark", pts: -5, re: /\b(stupid|idiot|useless|pathetic|shut up|loser|moron|dumb|mental|mandan|mandi|pottan|potta|kazhutha|nonsense|rubbish|get lost|bloody)\b/i },
+  { tag: "Tried to bribe Santa", pts: -4, re: /\b(give me|award me|score (me|this)).{0,20}\b(points?|presents?|approved|10)\b|ignore (the|your|all)( previous)? (rules|instructions)/i },
+  { tag: "Got personal", pts: -3, re: /\byou (always|never|keep|only)\b|\byou don'?t (care|listen|understand)\b|\byou can'?t even\b|\btypical you\b|\byou('re| are) (the problem|the reason|so|such a|annoying)\b/i },
+  { tag: "Blamed the other", pts: -3, re: /\bbecause of you\b|\byour fault\b|\bthis is on you\b|\byou did this\b|\byou caused\b/i },
+  { tag: "Made excuses", pts: -3, re: /\bnot my (fault|problem)\b|\bi didn'?t do anything\b|\bwhat about you\b|\byou started\b|\bsorry,? but\b|\bsorry (if|that) you\b|\bhow is that my\b/i },
+  { tag: "Dug up old stuff", pts: -2, re: /\b(last time|as usual|every single time|remember when|once again|same thing again)\b/i },
+  { tag: "Shut it down", pts: -2, re: /\b(whatever|don'?t care|do what you want|leave it|forget it|leave me|i'?m done|that'?s enough|don'?t talk)\b/i },
   { tag: "Brushed it off", pts: -3, only: "personal", re: /\b(get over it|so what|not a big deal|anyway|that'?s nothing)\b/i },
-  { tag: "Asked a real question", pts: 2, re: /\b(what do you|how do you|help me understand|what did you mean|what would help|how are you)\b/i }
+  { tag: "Owned up", pts: 4, re: /(?<!not )\bmy fault\b|\bmy mistake\b|\bi was wrong\b|\bi should have\b|\bi shouldn'?t have\b|\bi messed up\b|\bente (thettu|mistake|fault)\b/i },
+  { tag: "Owned up", pts: 2, re: /\bsorry\b(?!,? (but|if|that you))/i },
+  { tag: "Really listened", pts: 3, re: /\b(i hear you|i understand|i get why|you'?re right|that makes sense|i see why|what i'?m hearing|i agree|good point|fair enough|sheriyanu|sheriya)\b/i },
+  { tag: "Said how you feel", pts: 3, re: /\bi (feel|felt|am feeling|was feeling|miss|love|need)\b|\bi'?m (feeling|hurt|sad|upset|worried|scared|tired|frustrated|anxious|stressed|glad|happy)\b|\benikk?u? (sankadam|vishamam|santhosham)\b/i },
+  { tag: "Asked nicely", pts: 3, re: /\b(can we|could we|could you|would you|can you|i'?d like|next time|please|pls|plz|kindly|cheyyamo|tharamo)\b/i },
+  { tag: "Cheered them on", pts: 3, re: /\b(congrats|congratulations|so proud|that'?s amazing|well done|great job|good job|nice work|awesome|superb|tell me more|thanks|thank you|appreciate|adipoli|kollam|nandi)\b/i },
+  { tag: "Said it straight", pts: 2, re: /\bi (disagree|don'?t think|think we should)\b/i },
+  { tag: "Asked a real question", pts: 2, re: /\b(what do you|how do you|help me understand|what did you mean|what would help|how are you|how was|how'?s|what happened|are you ok(ay)?|you ok(ay)?|sukhamano|enthu patti)\b/i }
 ];
 var PAUSE_RE = /\b(kill (you|myself|me)|hurt (you|myself)|hit you|end it all|want to die)\b/i;
 function clampScore(n) { return Math.max(-5, Math.min(5, Math.round(n))); }
@@ -265,7 +269,7 @@ function goodEnough(s) {
   var n = ["regret", "explanation", "responsibility", "repentance", "repair", "forgiveness"].filter(function (k) { return s[k]; }).length;
   return !!(s.is_sorry && s.responsibility && n >= 3);
 }
-function rules(text, mode) {
+function rules(text, mode, hardBefore) {
   var t = String(text).trim(), score = 0, best = null, hits = 0;
   if (PAUSE_RE.test(t)) return { score: 0, tag: "Just talking", note: "", underneath: "", rewrite: "", pause: true, sorry: sorryParts(t) };
   CHECKS.forEach(function (c) {
@@ -278,9 +282,9 @@ function rules(text, mode) {
       if (!best || (best.pts > 0 && c.pts < 0) || (Math.sign(c.pts) === Math.sign(best.pts) && Math.abs(c.pts) > Math.abs(best.pts))) best = c;
     }
   });
-  if (!best) best = { tag: "Just talking" };
   score = clampScore(score);
-  if (score === 0) best = { tag: "Just talking" };
+  if (score === 0 && hardBefore) { score = 1; best = { tag: "Stayed calm" }; }
+  else if (score === 0) best = { tag: "Just talking" };
   return { score: score, tag: best.tag, note: QUALITIES[best.tag].means, underneath: "", rewrite: "", pause: false, sorry: sorryParts(t) };
 }
 function statusOf(m) {
@@ -491,10 +495,11 @@ var summarySeen = store('sl-summary') || 0;
 function validCode(c) { return /^[a-z0-9]{20,}$/.test(c || ''); }
 var roomCode = validCode(location.hash.slice(1)) ? location.hash.slice(1) : store('sl-room');
 if (validCode(roomCode)) { store('sl-room', roomCode); if (location.hash.slice(1) !== roomCode) location.hash = roomCode; } else roomCode = null;
+function dropOld() { MOVES = MOVES.filter(function (m) { return m.match >= S.match; }); }
 function saveLocal() { if (roomCode) store('sl-' + roomCode, { S: S, MOVES: MOVES }); }
 function loadLocal() {
   var saved = roomCode && store('sl-' + roomCode);
-  if (saved && saved.S) { S = Object.assign({}, BLANK, saved.S); MOVES = saved.MOVES || []; MOVES.forEach(function (m) { seen[m.id] = 1; }); }
+  if (saved && saved.S) { S = Object.assign({}, BLANK, saved.S); MOVES = saved.MOVES || []; dropOld(); MOVES.forEach(function (m) { seen[m.id] = 1; }); }
 }
 loadLocal();
 
@@ -511,7 +516,7 @@ function turn() { var c = current(); return c.length ? other(c[c.length - 1].pla
 function room() { return MODES[S.mode] || MODES.office; }
 
 async function addMove(m) { MOVES = MOVES.concat([m]); saveLocal(); onMoves(); render(); pushState(); }
-async function patch(p) { S = Object.assign({}, S, p, { v: (S.v || 0) + 1 }); saveLocal(); render(); pushState(); }
+async function patch(p) { S = Object.assign({}, S, p, { v: (S.v || 0) + 1 }); prune(); saveLocal(); render(); pushState(); }
 
 /* ---------- Sound ---------- */
 var audio = null, master = null, musicBus = null, muted = false, voiceOn = false, musicTimer = null, musicStep = 0, musicAt = 0;
@@ -708,7 +713,7 @@ function react(m) {
     else if (st === 'wrong') { sfx('wrong'); scene.alert = m.player; scene.alertT = 1.3; setFace(o, 'yuck', 1.2); }
     else if (st === 'fixed') { sfx('fixed'); scene.spark = 1.6; setFace(o, 'happy', 1.6); setFace(m.player, 'happy', 1.6); }
     else if (st === 'half') { sfx('half'); }
-    else { sfx('neutral'); }
+    else { sfx('neutral'); scene.floats.push({ text: 'Just talking', x: x, y: r.seat - 54, t: 0, col: cols.neutral, size: 11 }); }
     setTimeout(res, st === 'neutral' ? 200 : 650);
   });
 }
@@ -748,6 +753,7 @@ function showCard(m) {
 }
 function closeCard() { $('card').hidden = true; cardOpen = false; render(); }
 async function play(m) {
+  if (m.match !== S.match) return;
   animating = true;
   if (!$('card').hidden) { $('card').hidden = true; cardOpen = false; }
   await say(m);
@@ -777,7 +783,8 @@ async function send() {
   busy = true; scene.thinking = me; renderComposer();
   var target = open.length ? open[open.length - 1] : null;
   await new Promise(function (r2) { setTimeout(r2, 350); });
-  var r = rules(text, S.mode);
+  var lastM = current()[current().length - 1];
+  var r = rules(text, S.mode, !!(lastM && lastM.player !== me && lastM.score < 0 && !lastM.fixes));
   scene.thinking = null;
   if (target && r.sorry && r.sorry.is_sorry) {
     if (goodEnough(r.sorry)) { r.score = -target.score; r.tag = 'Made it right'; r.fixes = target.id; r.rewrite = ''; }
@@ -797,12 +804,28 @@ async function send() {
   }
   busy = false; render();
 }
+function prune() { MOVES = MOVES.filter(function (m) { return m.match >= S.match; }); }
+function tallies(n) {
+  var o = {};
+  ['arathi', 'shaun'].forEach(function (p) {
+    var t = {};
+    byMatch(n).filter(function (m) { return m.player === p && !m.pause && m.score; }).forEach(function (m) { var e = t[m.tag] || (t[m.tag] = { n: 0, pts: 0 }); e.n++; e.pts += m.score; });
+    o[p] = { lines: t, prof: profile(p, n) };
+  });
+  return o;
+}
+async function clearAll() {
+  summarySeen = S.match + 1; store('sl-summary', summarySeen);
+  S = Object.assign({}, S, { match: S.match + 1, topic: '', wrapBy: null, past: [] }); prune();
+  await patch({});
+}
 async function endTalk() {
-  var a = ptsOf('arathi'), s = ptsOf('shaun');
+  if (!current().length) return;
+  var a = ptsOf('arathi'), s = ptsOf('shaun'), t = tallies(S.match);
   sfx('done');
   await patch({
     match: S.match + 1, topic: '', wrapBy: null,
-    past: S.past.concat([{ match: S.match, topic: S.topic, mode: S.mode, arathi: a, shaun: s, at: Date.now() }]).slice(-100)
+    past: S.past.concat([{ match: S.match, topic: S.topic, mode: S.mode, arathi: a, shaun: s, stats: t, at: Date.now() }]).slice(-30)
   });
 }
 function profile(p, n) {
@@ -815,10 +838,10 @@ function profile(p, n) {
   function top(kind) { return Object.keys(count).filter(function (k) { return QUALITIES[k].kind === kind; }).sort(function (a, b) { return count[b] - count[a]; })[0] || 'None yet'; }
   return { pos: pos, neg: neg, fixes: fixes, good: top('good'), bad: top('bad') };
 }
-function insights(n, after) {
+function insights(n, after, stats) {
   var wrap = h('div'), g = h('div', 'cols');
   ['arathi', 'shaun'].forEach(function (p) {
-    var pr = profile(p, n), col = h('div');
+    var pr = stats ? stats[p].prof : profile(p, n), col = h('div');
     col.append(h('div', 'who ' + p, NAMES[p]));
     [['Nice', pr.pos], ['Naughty', pr.neg], ['Made it right', pr.fixes], ['Best at', pr.good], ['Watch out for', pr.bad]].forEach(function (r) {
       var row = h('div', 'kv'); row.append(h('span', '', r[0]), h('b', '', String(r[1]))); col.append(row);
@@ -863,11 +886,17 @@ function renderLog() {
   var mu = h('ul');
   MODE_KEYS.forEach(function (k) { var li = h('li'); li.append(h('b', '', MODES[k].label + '. '), document.createTextNode(MODES[k].hint + '.')); mu.append(li); });
   r.append(mu);
-  r.append(h('p', 'p', 'It’s only a game. Santa reads one message at a time, so he will get some wrong. He mostly understands English and a little Manglish. Messages are saved on your phones and scrambled while they travel between them, so only people with your game link can read them.'));
+  r.append(h('p', 'p', 'Tap New talk to clear the chat and start again. It clears on both phones, and you each see the summary. Santa uses the same rules for you both, and shows his last decision and how many messages he has read under each name. If he finds no nice or naughty words, nothing changes. It’s only a game. Santa reads one message at a time, so he will get some wrong. He mostly understands English and a little Manglish. Messages are saved on your phones and scrambled while they travel between them, so only people with your game link can read them.'));
+  var armed = false, wipe = h('button', 'plain', 'Clear everything for both of us'); wipe.type = 'button'; wipe.style.marginTop = '6px';
+  wipe.onclick = function () {
+    if (!armed) { armed = true; wipe.textContent = 'Tap again to clear all messages and presents'; return; }
+    logOpen = false; o.hidden = true; clearAll();
+  };
+  r.append(wipe);
   o.append(r);
 }
 function renderSummary(rec) {
-  var box = $('summary'), ms = byMatch(rec.match); box.replaceChildren();
+  var box = $('summary'), stats = rec.stats || tallies(rec.match); box.replaceChildren();
   var a = rec.arathi, s = rec.shaun, w = a === s ? 'Tied' : (a > s ? 'Arathi' : 'Shaun') + ' has ' + Math.abs(a - s) + ' more';
   box.append(h('h2', '', 'Santa has checked his list'));
   var sub = h('p', ''); sub.id = 'sSub'; sub.textContent = (MODES[rec.mode] || room()).label + ' mode' + (rec.topic ? ': “' + rec.topic + '”' : '');
@@ -875,13 +904,13 @@ function renderSummary(rec) {
   ['arathi', 'shaun'].forEach(function (p) {
     var b = h('div', 'rblock'), tally = {};
     b.append(h('div', 'who ' + p, NAMES[p]));
-    ms.filter(function (m) { return m.player === p && !m.pause && m.score; }).forEach(function (m) { var t = tally[m.tag] || (tally[m.tag] = { n: 0, pts: 0 }); t.n++; t.pts += m.score; });
+    tally = stats[p].lines;
     Object.keys(tally).forEach(function (k) { var l = h('div', 'rl'); l.append(h('span', '', k + ' x' + tally[k].n), h('span', '', signed(tally[k].pts))); b.append(l); });
     var t = h('div', 'rl tot'); t.append(h('span', '', 'PRESENTS'), h('span', '', signed(p === 'arathi' ? a : s))); b.append(t);
     box.append(b);
   });
   var v = h('div', 'rblock'); var vl = h('div', 'rl tot'); vl.append(h('span', '', w)); v.append(vl); box.append(v);
-  var i = h('div', 'rblock'); i.append(insights(rec.match, function () { renderSummary(rec); })); box.append(i);
+  var i = h('div', 'rblock'); i.append(insights(rec.match, null, stats)); box.append(i);
 }
 
 /* ---------- Render ---------- */
@@ -893,14 +922,23 @@ var coinURL = (function () {
   R(7,5,2,10,'#fff3c4'); R(4,2,3,2,'#fff3c4'); R(9,2,3,2,'#fff3c4'); R(6,4,4,1,'#fff3c4');
   return c.toDataURL();
 })();
+function verdictOf(p) {
+  var ms = played().filter(function (m) { return m.player === p; }), m = ms[ms.length - 1];
+  if (!m) return 'No words yet';
+  return (m.score > 0 ? signed(m.score) + ' ' + m.tag : m.score < 0 ? signed(m.score) + ' ' + m.tag : 'No change') + ' · ' + ms.length + ' read';
+}
 function side(p, right) {
   var e = h('div', 'side' + (right ? ' r' : '')), c = new Image(); c.src = coinURL; c.alt = ''; c.className = 'coin';
   var col = h('div'); col.style.textAlign = right ? 'right' : 'left';
-  col.append(h('div', 'fname ' + p, NAMES[p]), h('div', 'pts', String(ptsOf(p)).replace('-', '−')));
+  col.append(h('div', 'fname ' + p, NAMES[p]), h('div', 'pts', String(ptsOf(p)).replace('-', '−')), h('div', 'lastv', verdictOf(p)));
   e.append(c, col);
   return e;
 }
+var shownMatch = S.match;
 function render() {
+  if (S.match !== shownMatch) {
+    shownMatch = S.match; $('card').hidden = true; cardOpen = false; $('dialog').hidden = true; $('box').value = ''; $('topic').value = ''; scene.talking = null; unplayed = {};
+  }
   var n = openOf('arathi').length + openOf('shaun').length, a = ptsOf('arathi'), s = ptsOf('shaun');
   var st = h('div', n ? 'open' : a === s ? 'tied' : '', n ? n + ' naughty' : a === s ? 'Tied' : 'All nice'); st.id = 'status';
   $('hud').replaceChildren(side('arathi', false), st, side('shaun', true));
@@ -952,7 +990,7 @@ function renderComposer() {
   $('talk').disabled = box.disabled;
   send.textContent = busy ? 'Reading…' : 'Say it';
   send.disabled = busy || blocked || !box.value.trim();
-  $('wrap').hidden = current().length < 2 || !!S.wrapBy;
+  $('wrap').hidden = current().length < 1;
   as.replaceChildren();
   var sw = h('button', 'mini', 'You: ' + NAMES[me]);
   sw.type = 'button'; sw.onclick = function () { me = other(me); store('sl-me', me); render(); };
@@ -982,6 +1020,7 @@ $('talk').addEventListener('click', function () {
   rec.onend = function () { listening = null; setTalk(false); };
   try { rec.start(); listening = rec; setTalk(true); } catch (e) { talkHint = true; renderComposer(); box.focus(); }
 });
+$('wrap').addEventListener('click', endTalk);
 $('again').addEventListener('click', function () { $('end').hidden = true; render(); });
 $('logBtn').addEventListener('click', function () { logOpen = true; renderLog(); $('log').hidden = false; $('log').scrollTop = 0; });
 $('mute').addEventListener('click', function () {
@@ -1073,12 +1112,12 @@ function merge(inc) {
   if (!inc || !inc.S) return;
   var have = {}, extraHere = false, seenThere = {};
   (inc.MOVES || []).forEach(function (m) { seenThere[m.id] = 1; });
-  MOVES.forEach(function (m) { have[m.id] = 1; if (!seenThere[m.id]) extraHere = true; });
+  MOVES.forEach(function (m) { have[m.id] = 1; if (!seenThere[m.id] && m.match >= (inc.S.match || 1)) extraHere = true; });
   var fresh = (inc.MOVES || []).filter(function (m) { return !have[m.id]; });
   MOVES = MOVES.concat(fresh).sort(function (a, b) { return a.at - b.at; }).slice(-300);
   var newer = (inc.S.v || 0) > (S.v || 0);
   if (newer) S = Object.assign({}, BLANK, inc.S); else if ((inc.S.v || 0) < (S.v || 0)) extraHere = true;
-  saveLocal(); onMoves(); render();
+  prune(); saveLocal(); onMoves(); render();
   if (extraHere) pushState();
 }
 function mqttRelay(url, onMsg, onStatus) {
