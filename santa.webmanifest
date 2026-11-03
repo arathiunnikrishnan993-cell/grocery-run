@@ -1,0 +1,24 @@
+{
+ "name": "Santa's List",
+ "short_name": "Santa's List",
+ "start_url": "santa.html",
+ "scope": "./",
+ "display": "standalone",
+ "orientation": "portrait",
+ "background_color": "#eaf3fb",
+ "theme_color": "#eaf3fb",
+ "icons": [
+  {
+   "src": "santa-icon-192.png",
+   "sizes": "192x192",
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "src": "santa-icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "any"
+  }
+ ]
+}
