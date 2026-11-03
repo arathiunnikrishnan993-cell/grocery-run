@@ -758,7 +758,7 @@ async function play(m) {
   if (!$('card').hidden) { $('card').hidden = true; cardOpen = false; }
   await say(m);
   await react(m);
-  $('dialog').hidden = true; duck(false);
+  duck(false);
   if (statusOf(m) === 'neutral') { /* ordinary talk flows on without a card */ }
   else showCard(m);
   animating = false; render();
@@ -950,6 +950,11 @@ function render() {
   });
   var t = turn();
   $('turn').textContent = t ? NAMES[t] + '’s turn' : 'Either starts';
+  if (!animating) {
+    var said = played(), lastSaid = said[said.length - 1];
+    $('dialog').hidden = !lastSaid;
+    if (lastSaid) { $('dName').textContent = NAMES[lastSaid.player]; $('dName').className = lastSaid.player; $('dText').textContent = lastSaid.text; }
+  }
   renderBanner(); renderComposer();
   if (logOpen) renderLog();
   var lp = S.past[S.past.length - 1];
