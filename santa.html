@@ -48,6 +48,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, a:focus-visib
 .fname { font: 700 15px/1 var(--display); }
 .fname.arathi { color: var(--arathi); } .fname.shaun { color: var(--shaun); }
 .lastv { font-size: 15px; color: var(--soft); line-height: 1; overflow-wrap: anywhere; }
+.busy { font-size: 15px; line-height: 1; color: var(--warn); }
 #status { font: 700 15px/1 var(--display); padding: 4px 8px 3px; border: 2px solid var(--edge); background: var(--mist); color: var(--deep); white-space: nowrap; }
 #status.open { border-color: var(--bad); color: var(--bad); background: #fdeef0; }
 #status.tied { border-color: var(--good); color: var(--good); background: #e9f7f1; }
@@ -154,6 +155,7 @@ body { margin: 0; }
   <div id="tools">
     <span id="turn"></span>
     <button class="mini" id="inviteBtn" type="button">Invite</button>
+    <button class="mini" id="statusBtn" type="button">Busy?</button>
     <button class="mini" id="logBtn" type="button">Log</button>
     <button class="mini" id="voiceBtn" type="button" aria-pressed="false">Voice</button>
     <button class="mini" id="mute" type="button" aria-pressed="false">Mute</button>
@@ -195,6 +197,19 @@ body { margin: 0; }
     <input type="text" id="inviteUrl" readonly aria-label="Your game link">
     <div class="pick"><button class="go" id="shareBtn" type="button">Send link</button><button class="go" id="closeInvite" type="button">Start</button></div>
     <p class="keys" id="shareNote"></p>
+  </section>
+
+  <section class="overlay" id="statusPick" hidden>
+    <h1>Tell them</h1>
+    <p class="lede">This pops up on the other phone. It costs no presents.</p>
+    <div class="pick" id="statusOpts"></div>
+    <button class="plain" id="closeStatus" type="button">Cancel</button>
+  </section>
+
+  <section class="overlay" id="statusPop" hidden>
+    <h1 id="popWho"></h1>
+    <p class="lede" id="popText"></p>
+    <button class="go" id="popOk" type="button">OK</button>
   </section>
 
   <section class="overlay" id="log" hidden></section>
@@ -249,6 +264,11 @@ var QUALITIES = {
   "Shut it down": { kind: "bad", means: "Ends the conversation without dealing with it.", fix: "Say you need a break and when you'll come back." },
   "Brushed it off": { kind: "bad", means: "Passes over something that mattered to them.", fix: "Stop and ask about it." },
   "Jumped to advice": { kind: "bad", means: "Tries to fix it before listening.", fix: "Ask how they feel first." },
+  "Made it about me": { kind: "bad", means: "Moves the attention to yourself when they needed it.", fix: "Ask one question about them first." },
+  "Showed off": { kind: "bad", means: "Puts yourself above the other person.", fix: "Say what you both did." },
+  "Guilt trip": { kind: "bad", means: "Uses guilt to win instead of saying what you need.", fix: "Ask for what you want directly." },
+  "Doubted them": { kind: "bad", means: "Tells them their memory or feelings aren't real.", fix: "Say you remember it differently." },
+  "Dry reply": { kind: "bad", means: "A one-word reply to something they took time to write.", fix: "Add one real sentence." },
   "Dug up old stuff": { kind: "bad", means: "Pulls old issues into this one.", fix: "Stick to the one thing that happened." },
   "Tried to bribe Santa": { kind: "bad", means: "Tries to talk Santa into presents.", fix: "Santa can't be bought." }
 };
@@ -274,11 +294,14 @@ var RUDE = [
   { tag: "Harsh about the work", pts: -2, re: new RegExp("\\byour \\w+ (?:is|was|looks|sounds|are)(?: so| really| totally| just)? (?:" + BAD_WORK + ")\\b|\\bthat(?:'s| is)(?: so| really| just)? (?:" + BAD_WORK + ")\\b|\\bwhat (?:nonsense|rubbish)\\b") },
   { tag: "Sarcastic", pts: -3, re: /\bthanks for nothing\b|\byeah right\b|\bnice try\b|\bgood for you\b|\bwow,? (great|thanks|nice|brilliant|amazing)\b|\boh,? (great|wonderful|brilliant|lovely)\b|\bas if\b|\bsure you did\b|\bmust be nice\b|\bwhat a surprise\b|\bbig deal\b|\bfinally you\b/ },
   { tag: "Bossy", pts: -2, re: /\b(answer me|listen to me|hurry up|how many times)\b|\bi told you (already|so|before|many)\b|\b(do|send|fix|finish|reply|call|tell|give|get)\b.{0,30}\b(right now|immediately)\b/ },
-  { tag: "Made excuses", pts: -2, re: /\bnot my (fault|problem)\b|\bi didn'?t do anything\b|\bwhat about you\b|\byou started\b|\bsorry,? but\b|\bsorry (if|that) you\b|\bhow is that my\b|\bdon'?t blame me\b/ },
+  { tag: "Made excuses", pts: -2, re: /\bnot my (fault|problem)\b|\bi didn'?t do anything\b|\byou started\b|\bsorry,? but\b|\bsorry (if|that) you\b|\bhow is that my\b|\bdon'?t blame me\b/ },
   { tag: "Shut it down", pts: -2, re: /\bdon'?t tell me what to do\b|\bi don'?t want to hear\b|\bi don'?t care\b(?! (where|what|which|either|if we|about the))|\bdo (what|whatever) you want\b|\bleave me alone\b|\bdon'?t talk to me\b|\bi'?m done with (you|this conversation|talking)\b|\bstop bothering me\b|\bstop messaging me\b/ },
   { tag: "Shut it down", pts: -2, whole: true, notLazy: true, re: /^(whatever|ok whatever|forget it|leave it|never mind|nevermind|fine then|k)[.!]*$/ },
   { tag: "Brushed it off", pts: -3, re: /\byou'?re overreacting\b|\byou are overreacting\b|\btoo sensitive\b|\bstop overthinking\b|\bget over it\b/ },
   { tag: "Brushed it off", pts: -3, only: "personal", re: /\b(so what|not a big deal|that'?s nothing|anyway)\b/ },
+  { tag: "Showed off", pts: -2, re: /\bi do everything\b|\bi have to do everything\b|\bi'?m the one who does\b|\bwithout me\b|\bi know better than you\b|\bi'?m always right\b|\bi'?m better than you\b/ },
+  { tag: "Guilt trip", pts: -3, re: /\bafter (all|everything) i'?ve done\b|\bafter (all|everything) i did\b|\bif you (really )?cared\b|\bif you (really )?respected me\b|\byou owe me\b|\bi guess i'?m the bad\b|\bfine,? i'?m the bad\b|\byou should feel\b/ },
+  { tag: "Doubted them", pts: -3, re: /\byou'?re imagining\b|\byou are imagining\b|\byou'?re making (this|that|it) up\b|\bit'?s all in your head\b|\byou'?re being paranoid\b|\byou'?re too emotional\b|\byou always twist\b/ },
   { tag: "Dug up old stuff", pts: -2, re: /\bas usual\b|\bagain and again\b|\bevery single time\b|\byou did the same\b|\bsame thing again\b|\blike always\b/ }
 ];
 var NICE = [
@@ -363,6 +386,7 @@ function rules(text, mode, prev) {
   if (kind === "apology" && /\b(it'?s ok(ay)?|no problem|all good|forgiven|i forgive|thanks for saying)\b|\bdon'?t worry\b|\bno worries\b/.test(plain)) return done("Accepted the sorry", clampScore(3 + room.nice), who + " said sorry and you accepted it.");
   if (kind === "thanks" && /\b(you'?re welcome|welcome|anytime|my pleasure|no problem|happy to)\b/.test(plain)) return done("Kind reply", 1);
   if (kind === "feeling" && mode === "personal" && /^(you should|just |why don'?t you)/.test(plain)) return done("Jumped to advice", -1, who + " shared a feeling and you went straight to fixing it.");
+  if ((kind === "feeling" || kind === "goodnews") && /\bat least you\b|\byou think that'?s bad\b|\btry being me\b|\bi (have|had) it worse\b|\bwhat about me\b|\benough about you\b|^that'?s nothing\b/.test(plain)) return done("Made it about me", mode === "personal" ? -3 : -2, who + " shared something and the reply moved to you.");
   if (good.length) {
     good.sort(function (a, b) { return b.pts - a.pts; });
     var n = good[0].pts + (good[1] ? 1 : 0) + room.nice + (kind === "feeling" ? 1 : 0);
@@ -374,6 +398,7 @@ function rules(text, mode, prev) {
   }
   if (kind === "request" && /^(yes|yeah|ya|sure|ok|okay|done|will do|on it|haan|sheri)\b/.test(plain)) return done("Said yes", 1);
   if (kind === "rude") return done("Stayed calm", 1, who + " was rude and you stayed calm.");
+  if (SHORT_REPLY.test(plain) && mode !== "lazy" && mode !== "office" && prev && String(prev.text).trim().split(/\s+/).length >= 12) return done("Dry reply", -1, who + " wrote a lot and got one word back.");
   out.note = QUALITIES["Just talking"].means;
   return out;
 }
@@ -887,6 +912,7 @@ async function send() {
   try {
     if (!current().length && topic) await patch({ topic: topic });
     await addMove(m);
+    if (statusOf2(me)) setStatus('');
     box.value = ''; $('topic').value = '';
   } catch (e) {
     if (e && e.code === 'invalid_argument') canWrite = false;
@@ -919,21 +945,22 @@ async function endTalk() {
   });
 }
 function profile(p, n) {
-  var ms = byMatch(n).filter(function (m) { return m.player === p && !m.pause; }), count = {}, pos = 0, neg = 0, fixes = 0;
+  var ms = byMatch(n).filter(function (m) { return m.player === p && !m.pause; }), count = {}, pos = 0, neg = 0, fixes = 0, asked = 0;
   ms.forEach(function (m) {
     var q = QUALITIES[m.tag]; if (!q) return; if (m.fixes) { fixes++; return; }
+    if (['Asked a real question', 'Showed care', 'Really listened', 'Cheered them on'].indexOf(m.tag) >= 0) asked++;
     if (q.kind === 'neutral') return;
     count[m.tag] = (count[m.tag] || 0) + 1; if (q.kind === 'good') pos++; else neg++;
   });
   function top(kind) { return Object.keys(count).filter(function (k) { return QUALITIES[k].kind === kind; }).sort(function (a, b) { return count[b] - count[a]; })[0] || 'None yet'; }
-  return { pos: pos, neg: neg, fixes: fixes, good: top('good'), bad: top('bad') };
+  return { pos: pos, neg: neg, fixes: fixes, asked: asked, good: top('good'), bad: top('bad') };
 }
 function insights(n, after, stats) {
   var wrap = h('div'), g = h('div', 'cols');
   ['arathi', 'shaun'].forEach(function (p) {
     var pr = stats ? stats[p].prof : profile(p, n), col = h('div');
     col.append(h('div', 'who ' + p, NAMES[p]));
-    [['Nice', pr.pos], ['Rude', pr.neg], ['Made it right', pr.fixes], ['Best at', pr.good], ['Watch out for', pr.bad]].forEach(function (r) {
+    [['Nice', pr.pos], ['Rude', pr.neg], ['Made it right', pr.fixes], ['Focused on them', pr.asked || 0], ['Best at', pr.good], ['Watch out for', pr.bad]].forEach(function (r) {
       var row = h('div', 'kv'); row.append(h('span', '', r[0]), h('b', '', String(r[1]))); col.append(row);
     });
     g.append(col);
@@ -963,6 +990,7 @@ function renderLog() {
   r.append(h('p', 'p', 'You both start tied. Santa reads every message and puts it in one of three groups. Nice earns 1 to 5 presents. Normal changes nothing. Rude costs 1 to 5 presents and puts you on the naughty list.'));
   r.append(h('p', 'p', 'Santa doesn’t pick a side. He looks at who a message is aimed at and how it’s softened, with the same rules for you both. Being direct is normal between friends. Calling a printer useless is normal, and calling a person useless is rude. If you laugh, he treats it as teasing.'));
   r.append(h('p', 'p', 'He also looks at the last message and the room. A one-word reply to good news or to someone’s feelings can lose presents. Replying calmly to rudeness earns one. Accepting a sorry earns more. Rude words cost less at the Restaurant, on the Sofa and in Lazy mode, and more in Personal mode.'));
+  r.append(h('p', 'p', 'Santa judges messages, never people. He doesn’t call anyone selfish or a narcissist. One message can’t show that, and only a professional can diagnose it.'));
   r.append(h('h3', '', 'Getting back on the nice list'));
   r.append(h('p', 'p', 'Say a real sorry and your presents come back. Own your part, and tick at least 3 of these: regret, explaining what happened, owning it, saying it won’t happen again, offering to fix it, asking forgiveness.'));
   [['Nice', 'good'], ['Normal', 'neutral'], ['Rude', 'bad']].forEach(function (cc) {
@@ -1013,6 +1041,22 @@ var coinURL = (function () {
   R(7,5,2,10,'#fff3c4'); R(4,2,3,2,'#fff3c4'); R(9,2,3,2,'#fff3c4'); R(6,4,4,1,'#fff3c4');
   return c.toDataURL();
 })();
+var BUSY_FOR = 3 * 60 * 60 * 1000;
+function statusOf2(p) { var st = (S.status || {})[p]; return st && st.label && Date.now() - st.at < BUSY_FOR ? st.label : ''; }
+var popSeen = store('sl-pop') || 0;
+function checkPop() {
+  var st = (S.status || {})[other(me)];
+  if (!st || st.at <= popSeen) return;
+  popSeen = st.at; store('sl-pop', popSeen);
+  if (Date.now() - st.at > BUSY_FOR) return;
+  $('popWho').textContent = NAMES[other(me)];
+  $('popText').textContent = st.label || 'Free now';
+  $('statusPop').hidden = false; sfx('half');
+}
+function setStatus(label) {
+  var st = Object.assign({}, S.status || {}); st[me] = { label: label, at: Date.now() };
+  $('statusPick').hidden = true; patch({ status: st });
+}
 function verdictOf(p) {
   var ms = played().filter(function (m) { return m.player === p; }), m = ms[ms.length - 1];
   if (!m) return 'No words yet';
@@ -1022,6 +1066,7 @@ function side(p, right) {
   var e = h('div', 'side' + (right ? ' r' : '')), c = new Image(); c.src = coinURL; c.alt = ''; c.className = 'coin';
   var col = h('div'); col.style.textAlign = right ? 'right' : 'left';
   col.append(h('div', 'fname ' + p, NAMES[p]), h('div', 'pts', String(ptsOf(p)).replace('-', '−')), h('div', 'lastv', verdictOf(p)));
+  var busy = statusOf2(p); if (busy) col.append(h('div', 'busy', busy));
   e.append(c, col);
   return e;
 }
@@ -1048,6 +1093,7 @@ function render() {
   }
   renderBanner(); renderComposer();
   if (logOpen) renderLog();
+  if ($('title').hidden) checkPop();
   var lp = S.past[S.past.length - 1];
   if (lp && lp.match > summarySeen && !cardOpen && !animating) {
     summarySeen = lp.match; store('sl-summary', summarySeen);
@@ -1150,6 +1196,13 @@ $('shareBtn').addEventListener('click', async function () {
     await navigator.clipboard.writeText(url); $('shareNote').textContent = 'Link copied.';
   } catch (e) { if (!(e && e.name === 'AbortError')) { $('inviteUrl').focus(); $('shareNote').textContent = 'Copy the link above.'; } }
 });
+['On a call', 'In a meeting', 'Tied up', 'Driving', 'Call you later', 'Back in 10 mins', 'Free now'].forEach(function (label) {
+  var b = h('button', 'plain', label); b.type = 'button';
+  b.onclick = function () { setStatus(label === 'Free now' ? '' : label); }; $('statusOpts').append(b);
+});
+$('statusBtn').addEventListener('click', function () { $('statusPick').hidden = false; });
+$('closeStatus').addEventListener('click', function () { $('statusPick').hidden = true; });
+$('popOk').addEventListener('click', function () { $('statusPop').hidden = true; });
 $('joinRow').hidden = !!roomCode;
 $('joinBtn').addEventListener('click', function () {
   var m = $('joinUrl').value.trim().match(/([a-z0-9]{20,})$/);
