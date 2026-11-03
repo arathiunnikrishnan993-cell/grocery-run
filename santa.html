@@ -2,6 +2,13 @@
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex">
+<link rel="manifest" href="santa.webmanifest">
+<link rel="apple-touch-icon" href="santa-icon-192.png">
+<link rel="icon" href="santa-icon-192.png">
+<meta name="theme-color" content="#eaf3fb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Santa's List">
 <title>Santa's List</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -112,6 +119,8 @@ h1 { font: 700 42px/1 var(--display); margin: 0; text-align: center; color: var(
 .leg b { font: 700 15px/1.1 var(--display); display: block; }
 .pick { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 .keys { margin: 0; font-size: 17px; color: var(--soft); text-align: center; }
+#joinRow { width: 100%; display: flex; gap: 6px; }
+#joinUrl { flex: 1; min-width: 0; background: var(--white); color: var(--ink); border: 2px solid var(--edge); padding: 4px 7px; font-size: 18px; }
 #inviteUrl { width: 100%; background: var(--white); color: var(--ink); border: 2px solid var(--edge); padding: 6px 8px; font-size: 18px; }
 #log { align-items: stretch; }
 #log > .sheet { padding: 10px 11px; }
@@ -175,6 +184,7 @@ body { margin: 0; }
       <button class="go pink" id="asA" type="button">I'm Arathi</button>
       <button class="go" id="asS" type="button">I'm Shaun</button>
     </div>
+    <div id="joinRow"><input type="text" id="joinUrl" aria-label="Paste your game link" placeholder="Got a game link? Paste it here"><button class="plain" id="joinBtn" type="button">Join</button></div>
     <p class="keys">Sound on. Tap Talk and speak, or type.</p>
     <p class="keys">&copy; 2026 Arathi Unnikrishnan</p>
   </section>
@@ -1139,6 +1149,12 @@ $('shareBtn').addEventListener('click', async function () {
     if (navigator.share) { await navigator.share({ title: 'Santa\u2019s List', text: 'Come play Santa\u2019s List', url: url }); return; }
     await navigator.clipboard.writeText(url); $('shareNote').textContent = 'Link copied.';
   } catch (e) { if (!(e && e.name === 'AbortError')) { $('inviteUrl').focus(); $('shareNote').textContent = 'Copy the link above.'; } }
+});
+$('joinRow').hidden = !!roomCode;
+$('joinBtn').addEventListener('click', function () {
+  var m = $('joinUrl').value.trim().match(/([a-z0-9]{20,})$/);
+  if (!m) { $('joinUrl').value = ''; $('joinUrl').placeholder = 'That link did not work. Try again.'; return; }
+  roomCode = m[1]; store('sl-room', roomCode); location.hash = roomCode; loadLocal(); $('joinRow').hidden = true; render();
 });
 $('asA').addEventListener('click', function () { begin('arathi'); });
 $('asS').addEventListener('click', function () { begin('shaun'); });
