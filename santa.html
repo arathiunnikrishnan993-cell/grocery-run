@@ -116,6 +116,15 @@ h1 { font: 700 42px/1 var(--display); margin: 0; text-align: center; color: var(
 .lede { margin: 0; text-align: center; max-width: 32ch; }
 #heroes { width: 100%; max-width: 280px; image-rendering: pixelated; display: block; }
 #legend { width: 100%; display: flex; flex-direction: column; gap: 5px; }
+#waSheet { width: 100%; max-width: 410px; padding: 10px 12px; display: flex; flex-direction: column; gap: 7px; }
+#waSheet .keys { margin: 0; }
+#waText { width: 100%; min-height: 110px; background: var(--white); color: var(--ink); border: 2px solid var(--edge); padding: 4px 7px; font-size: 17px; resize: vertical; }
+.filebtn { display: block; text-align: center; cursor: pointer; font-weight: 700; }
+#waSetup select { font: inherit; font-size: 18px; background: var(--white); color: var(--ink); border: 2px solid var(--edge); padding: 2px 4px; max-width: 62%; }
+.waRow { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 5px; }
+.waRow b.arathi { color: var(--arathi); } .waRow b.shaun { color: var(--shaun); }
+#waNote { color: var(--deep); text-align: center; max-width: 34ch; }
+.when { font-size: 15px; color: var(--soft); }
 .leg { background: var(--white); padding: 4px 8px 5px; border: 2px solid var(--edge); }
 .leg b { font: 700 15px/1.1 var(--display); display: block; }
 .pick { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
@@ -157,6 +166,7 @@ body { margin: 0; }
     <button class="mini" id="inviteBtn" type="button">Invite</button>
     <button class="mini" id="statusBtn" type="button">Busy?</button>
     <button class="mini" id="logBtn" type="button">Log</button>
+    <button class="mini" id="waBtn" type="button">WhatsApp</button>
     <button class="mini" id="voiceBtn" type="button" aria-pressed="false">Voice</button>
     <button class="mini" id="mute" type="button" aria-pressed="false">Mute</button>
   </div>
@@ -212,6 +222,21 @@ body { margin: 0; }
     <button class="go" id="popOk" type="button">OK</button>
   </section>
 
+  <section class="overlay" id="wa" hidden>
+    <h1>WhatsApp chat</h1>
+    <p class="lede">Santa reads a WhatsApp chat between you two and scores it with the same rules.</p>
+    <div class="sheet" id="waSheet">
+      <p class="keys">In WhatsApp, open the chat, tap &#8942; (or the name on iPhone), then More, Export chat, Without media. Save it to Files.</p>
+      <label class="plain filebtn" for="waFile">Choose the chat file</label>
+      <input type="file" id="waFile" accept=".txt,.zip,text/plain,application/zip" hidden>
+      <p class="keys" style="text-align:center">or paste the chat below</p>
+      <textarea id="waText" aria-label="Paste the WhatsApp chat" placeholder="20/11/2026, 6:57 pm - Shaun: Hi&#10;20/11/2026, 6:58 pm - Arathi: Hello!"></textarea>
+      <div id="waSetup"></div>
+    </div>
+    <p class="keys" id="waNote"></p>
+    <div class="pick"><button class="go" id="waGo" type="button" disabled>Let Santa read it</button><button class="plain" id="waClose" type="button">Cancel</button></div>
+    <p class="keys">The chat is read on this phone. Only the scored messages are shared with your game partner, the same way game messages are.</p>
+  </section>
   <section class="overlay" id="log" hidden></section>
 
   <section class="overlay" id="end" hidden>
@@ -892,6 +917,7 @@ function onMoves() {
   MOVES.forEach(function (m) {
     if (seen[m.id]) return;
     seen[m.id] = 1;
+    if (m.imported) return;
     if (m.at > bootAt - 5000 && m.match === S.match) {
       unplayed[m.id] = 1;
       queue = queue.then(function () { return play(m); }).catch(function () { animating = false; delete unplayed[m.id]; render(); });
@@ -986,13 +1012,16 @@ function renderLog() {
   var c = current();
   var a = h('div', 'sheet'); a.append(h('h2', '', 'The list so far'));
   a.append(h('p', 'p', liveCount ? 'Connected. Both phones stay in sync.' : roomCode ? 'Connecting\u2026 Messages send when you are back online.' : 'Not connected yet.'));
+  if (c.length && S.topic) a.append(h('p', 'when', S.topic));
   if (c.length) a.append(insights(S.match, renderLog)); else a.append(h('p', 'p', 'Nothing yet. Say the first thing.'));
   o.append(a);
   if (c.length) {
     var l = h('div', 'sheet'); l.append(h('h2', '', 'Everything said'));
     c.forEach(function (m) {
       var e = h('div', 'entry');
-      e.append(h('div', 'who ' + m.player, NAMES[m.player]), h('p', 'p', m.text));
+      e.append(h('div', 'who ' + m.player, NAMES[m.player]));
+      if (m.imported) e.append(h('div', 'when', new Date(m.at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })));
+      e.append(h('p', 'p', m.text));
       var body = h('div'); body.style.marginTop = '5px'; reviewBody(m, body); e.append(body);
       l.append(e);
     });
@@ -1018,6 +1047,8 @@ function renderLog() {
   MODE_KEYS.forEach(function (k) { var li = h('li'); li.append(h('b', '', MODES[k].label + '. '), document.createTextNode(MODES[k].hint + '.')); mu.append(li); });
   r.append(mu);
   r.append(h('p', 'p', 'Tap New talk to clear the chat and start again. It clears on both phones, and you each see the summary. Santa uses the same rules for you both, and shows his last decision and how many messages he has read under each name. If he finds no nice or naughty words, nothing changes. It’s only a game. Santa reads one message at a time, so he will get some wrong. He mostly understands English and a little Manglish. Messages are saved on your phones and scrambled while they travel between them, so only people with your game link can read them.'));
+  r.append(h('h3', '', 'WhatsApp chats'));
+  r.append(h('p', 'p', 'Tap WhatsApp to let Santa read a chat you exported from WhatsApp, or paste it in. Messages someone sends in a row count as one turn. Santa scores them with the same rules and adds them as a new talk on both phones. Photos, voice notes and deleted messages are skipped, and he reads the latest 150 turns at most.'));
   var armed = false, wipe = h('button', 'plain', 'Clear everything for both of us'); wipe.type = 'button'; wipe.style.marginTop = '6px';
   wipe.onclick = function () {
     if (!armed) { armed = true; wipe.textContent = 'Tap again to clear all messages and presents'; return; }
@@ -1247,6 +1278,176 @@ $('asS').addEventListener('click', function () { begin('shaun'); });
     var row = h('div', 'leg'); row.append(h('b', '', r[0])); $('legend').append(row);
   });
 })();
+
+/* ---------- WhatsApp chat import ---------- */
+var WA_MAX = 150, WA_GAP = 10 * 60 * 1000;
+var WA_HEAD = /^\[?(\d{1,4})[\/.\-](\d{1,2})[\/.\-](\d{1,4}),?\s+(\d{1,2})[:.](\d{2})(?:[:.](\d{2}))?\s*([ap])?\.?\s?m?\.?\s*\]?\s*(?:[-–~]\s*)?(.*)$/i;
+var WA_SKIP = /^(<media omitted>|<attached: .*>|(image|video|audio|sticker|gif|document|contact card|photo) omitted|this message was deleted\.?|you deleted this message\.?|waiting for this message.*|missed (voice|video|group voice|group video) call.*|(voice|video) call.*|null|view once (photo|video|voice message).*|poll:.*|location: .*|live location shared.*)$/i;
+function waClean(s) { return String(s).replace(/[‎‏‪-‮﻿]/g, '').replace(/[  ]/g, ' ').replace(/\r\n?/g, '\n'); }
+function parseWA(raw) {
+  var lines = waClean(raw).split('\n'), heads = [], dayFirst = null, yearFirst = false;
+  lines.forEach(function (l) { var m = l.match(WA_HEAD); if (m) heads.push(m); });
+  heads.forEach(function (m) {
+    if (m[1].length === 4) yearFirst = true;
+    else if (+m[1] > 12) dayFirst = true;
+    else if (+m[2] > 12 && dayFirst === null) dayFirst = false;
+  });
+  if (dayFirst === null) dayFirst = true;
+  var msgs = [], cur = null, senders = {};
+  function when(m) {
+    var y, mo, d;
+    if (yearFirst) { y = +m[1]; mo = +m[2]; d = +m[3]; } else { d = +(dayFirst ? m[1] : m[2]); mo = +(dayFirst ? m[2] : m[1]); y = +m[3]; }
+    if (y < 100) y += 2000;
+    var hr = +m[4], ap = (m[7] || '').toLowerCase();
+    if (ap === 'p' && hr < 12) hr += 12; if (ap === 'a' && hr === 12) hr = 0;
+    return new Date(y, mo - 1, d, hr, +m[5], +(m[6] || 0)).getTime();
+  }
+  lines.forEach(function (l) {
+    var m = l.match(WA_HEAD);
+    if (m) {
+      var rest = m[8], c = rest.indexOf(': ');
+      cur = null;
+      if (c < 1 || c > 60) return;
+      var who = rest.slice(0, c).trim(), text = rest.slice(c + 2);
+      cur = { who: who, at: when(m), text: text };
+      msgs.push(cur);
+    } else if (cur) cur.text += '\n' + l;
+  });
+  msgs = msgs.map(function (x) {
+    x.text = x.text.replace(/\s*<this message was edited>\s*$/i, '').replace(/\s*this message was edited\s*$/i, '').trim();
+    return x;
+  }).filter(function (x) { return x.text && !WA_SKIP.test(x.text) && !/\(file attached\)$/i.test(x.text); });
+  msgs.forEach(function (x) { senders[x.who] = (senders[x.who] || 0) + 1; });
+  return { msgs: msgs, senders: senders };
+}
+async function readZip(buf) {
+  var dv = new DataView(buf), u8 = new Uint8Array(buf), i, td = new TextDecoder();
+  for (i = u8.length - 22; i >= Math.max(0, u8.length - 65558); i--) if (dv.getUint32(i, true) === 0x06054b50) break;
+  if (i < 0 || dv.getUint32(i, true) !== 0x06054b50) throw new Error('zip');
+  var n = dv.getUint16(i + 10, true), off = dv.getUint32(i + 16, true), best = null;
+  for (var k = 0; k < n && dv.getUint32(off, true) === 0x02014b50; k++) {
+    var method = dv.getUint16(off + 10, true), size = dv.getUint32(off + 20, true), nl = dv.getUint16(off + 28, true), el = dv.getUint16(off + 30, true), cl = dv.getUint16(off + 32, true), lo = dv.getUint32(off + 42, true);
+    var name = td.decode(u8.subarray(off + 46, off + 46 + nl));
+    if (/\.txt$/i.test(name) && !/__MACOSX/.test(name) && (!best || /_chat\.txt$|whatsapp/i.test(name))) best = { method: method, size: size, lo: lo };
+    off += 46 + nl + el + cl;
+  }
+  if (!best) throw new Error('zip');
+  var start = best.lo + 30 + dv.getUint16(best.lo + 26, true) + dv.getUint16(best.lo + 28, true), data = u8.slice(start, start + best.size);
+  if (best.method === 0) return td.decode(data);
+  if (best.method !== 8 || !window.DecompressionStream) throw new Error('zip');
+  var out = await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer();
+  return td.decode(out);
+}
+function waTurns(msgs, aName, sName, range) {
+  var mine = msgs.filter(function (x) { return x.who === aName || x.who === sName; });
+  if (!mine.length) return [];
+  var cut = range ? mine[mine.length - 1].at - range : -Infinity;
+  var turns = [];
+  mine.forEach(function (x) {
+    if (!(x.at >= cut) && range) return;
+    var p = x.who === aName ? 'arathi' : 'shaun', last = turns[turns.length - 1];
+    if (last && last.player === p && x.at - last.end <= WA_GAP) { last.text += ' ' + x.text; last.end = x.at; }
+    else turns.push({ player: p, text: x.text, at: x.at, end: x.at });
+  });
+  return turns.slice(-WA_MAX);
+}
+function waScore(turns, mode, match) {
+  var out = [], prevAt = 0;
+  function openFor(p) {
+    var fixed = {}; out.forEach(function (m) { if (m.fixes) fixed[m.fixes] = 1; });
+    return out.filter(function (m) { return m.player === p && !m.pause && !m.fixes && m.score < 0 && !fixed[m.id]; });
+  }
+  turns.forEach(function (t, i) {
+    var text = t.text.replace(/\s+/g, ' ').trim().slice(0, 600), last = out[out.length - 1];
+    var r = rules(text, mode, last && last.player !== t.player ? last : null), open = openFor(t.player), target = open[open.length - 1];
+    if (target && r.sorry && r.sorry.is_sorry) {
+      if (goodEnough(r.sorry)) { r.score = -target.score; r.tag = 'Made it right'; r.fixes = target.id; r.rewrite = ''; }
+      else { r.score = 0; r.tag = 'Half a sorry'; r.rewrite = ''; }
+    }
+    if (!(target && r.sorry && r.sorry.is_sorry)) delete r.sorry;
+    var at = isFinite(t.at) ? t.at : Date.now() - (turns.length - i) * 1000;
+    if (at <= prevAt) at = prevAt + 1; prevAt = at;
+    out.push(Object.assign({ id: 'w' + at.toString(36) + i.toString(36) + Math.random().toString(36).slice(2, 6), match: match, mode: mode, player: t.player, text: text, at: at, imported: true }, r));
+  });
+  return out;
+}
+var waChat = null;
+function waDate(t) { return new Date(t).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }); }
+function waGuess(names, re) { return names.filter(function (n) { return re.test(n); })[0]; }
+function waLoad(raw) {
+  waChat = parseWA(raw);
+  var names = Object.keys(waChat.senders).sort(function (a, b) { return waChat.senders[b] - waChat.senders[a]; });
+  var box = $('waSetup'); box.replaceChildren();
+  if (names.length < 2) {
+    waChat = null; $('waGo').disabled = true;
+    $('waNote').textContent = names.length ? 'Santa only found messages from ' + names[0] + '. He needs both of you.' : 'Santa couldn’t read that. Export the chat again and choose Without media.';
+    return;
+  }
+  var a = waGuess(names, /arathi/i) || waGuess(names, /^you$/i), s = waGuess(names, /shaun|sean/i);
+  if (!a) a = names.filter(function (n) { return n !== s; })[0];
+  if (!s) s = names.filter(function (n) { return n !== a; })[0];
+  function pick(label, cls, val, id) {
+    var row = h('div', 'waRow'), sel = h('select'); sel.id = id; sel.setAttribute('aria-label', label);
+    names.forEach(function (n) { var o = h('option', '', n + ' (' + waChat.senders[n] + ')'); o.value = n; if (n === val) o.selected = true; sel.append(o); });
+    row.append(h('b', cls, label), sel); box.append(row);
+  }
+  pick('Arathi is', 'arathi', a, 'waA'); pick('Shaun is', 'shaun', s, 'waS');
+  var rr = h('div', 'waRow'), rs = h('select'); rs.id = 'waRange'; rs.setAttribute('aria-label', 'Which part');
+  [['Last day', 864e5], ['Last week', 6048e5], ['Last month', 2592e6], ['Everything', 0]].forEach(function (x, i) { var o = h('option', '', x[0]); o.value = String(x[1]); if (i === 1) o.selected = true; rs.append(o); });
+  rr.append(h('b', '', 'Read'), rs); box.append(rr);
+  var mr = h('div', 'waRow'), ms = h('select'); ms.id = 'waMode'; ms.setAttribute('aria-label', 'Mode');
+  MODE_KEYS.forEach(function (k) { var o = h('option', '', MODES[k].label); o.value = k; if (k === S.mode) o.selected = true; ms.append(o); });
+  mr.append(h('b', '', 'Mode'), ms); box.append(mr);
+  [$('waA'), $('waS'), rs, ms].forEach(function (e) { e.onchange = waPreview; });
+  waPreview();
+}
+function waPreview() {
+  if (!waChat) return;
+  var a = $('waA').value, s = $('waS').value, go = $('waGo');
+  if (a === s) { go.disabled = true; $('waNote').textContent = 'Pick a different person for each of you.'; return; }
+  var turns = waTurns(waChat.msgs, a, s, +$('waRange').value);
+  go.disabled = !turns.length || !canWrite;
+  $('waNote').textContent = !turns.length ? 'No messages in that time. Try a longer range.' :
+    'Santa will read ' + turns.length + ' turns, ' + waDate(turns[0].at) + ' to ' + waDate(turns[turns.length - 1].at) + '.' + (turns.length >= WA_MAX ? ' That’s the latest ' + WA_MAX + '.' : '') + (current().length ? ' The talk on screen gets wrapped up first.' : '');
+}
+function waReset() { waChat = null; $('waSetup').replaceChildren(); $('waText').value = ''; $('waFile').value = ''; $('waNote').textContent = ''; $('waGo').disabled = true; }
+$('waBtn').addEventListener('click', function () { initAudio(); waReset(); $('wa').hidden = false; $('wa').scrollTop = 0; });
+$('waClose').addEventListener('click', function () { $('wa').hidden = true; });
+$('waFile').addEventListener('change', async function () {
+  var f = this.files && this.files[0]; if (!f) return;
+  $('waNote').textContent = 'Reading…';
+  try {
+    var buf = await f.arrayBuffer(), b = new Uint8Array(buf, 0, 2), raw;
+    raw = (b[0] === 0x50 && b[1] === 0x4b) ? await readZip(buf) : new TextDecoder().decode(buf);
+    $('waText').value = raw.length > 4000 ? '' : raw;
+    $('waText').placeholder = raw.length > 4000 ? 'Loaded ' + f.name : $('waText').placeholder;
+    waLoad(raw);
+  } catch (e) { waChat = null; $('waNote').textContent = 'Santa couldn’t open that file. Try exporting again, or paste the chat instead.'; }
+});
+var waTimer = null;
+$('waText').addEventListener('input', function () {
+  clearTimeout(waTimer); var v = this.value;
+  waTimer = setTimeout(function () { if (v.trim()) waLoad(v); else waReset(); }, 300);
+});
+$('waGo').addEventListener('click', async function () {
+  if (!waChat || !canWrite) return;
+  var a = $('waA').value, s = $('waS').value, mode = $('waMode').value, turns = waTurns(waChat.msgs, a, s, +$('waRange').value);
+  if (!turns.length || a === s) return;
+  var past = S.past, match = S.match;
+  if (current().length) {
+    past = past.concat([{ match: S.match, topic: S.topic, mode: S.mode, arathi: ptsOf('arathi'), shaun: ptsOf('shaun'), stats: tallies(S.match), at: Date.now() }]).slice(-30);
+    summarySeen = S.match; store('sl-summary', summarySeen); match = S.match + 1;
+  }
+  var moves = waScore(turns, mode, match);
+  moves.forEach(function (m) { seen[m.id] = 1; });
+  S = Object.assign({}, S, { match: match, mode: mode, wrapBy: null, past: past, topic: 'WhatsApp chat, ' + waDate(turns[0].at) + ' to ' + waDate(turns[turns.length - 1].at), v: (S.v || 0) + 1 });
+  MOVES = MOVES.concat(moves); prune(); saveLocal();
+  $('wa').hidden = true; sfx('done');
+  loadNote = 'Santa read ' + moves.length + ' turns from your WhatsApp chat. Open Log to see each one.';
+  render(); pushState();
+  logOpen = true; renderLog(); $('log').hidden = false; $('log').scrollTop = 0;
+  setTimeout(function () { if (loadNote.indexOf('WhatsApp') >= 0) { loadNote = ''; render(); } }, 15000);
+});
 
 /* ---------- Boot ---------- */
 render();
